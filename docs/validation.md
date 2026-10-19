@@ -103,3 +103,10 @@ failed. CI now selects a known compiler/core release together. Updating that
 selection requires rerunning `moon info`, reviewing the interface and testing
 all targets. Official download URLs are retained for a limited time, so the
 pin must be refreshed during toolchain maintenance rather than left indefinitely.
+
+Windows fresh checkouts with core.autocrlf enabled exposed an additional
+formatter-check failure: the formatter compared CRLF source against LF output
+through a Windows extended path that Git could not open. This was reproduced
+in a disposable fresh clone. `.gitattributes` now checks out all text as LF,
+preserving the original SQL fixture bytes and the canonical source format on
+every runner. The format and interface checks remain enabled.
