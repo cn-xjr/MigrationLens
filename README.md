@@ -5,9 +5,11 @@ Reports potentially blocking ordinary index operations and concurrent index
 operations conflicting with a declared existing transaction. Source is retained
 verbatim. Unsupported SQL is explicitly incomplete, never silently discarded.
 
-Currently covers **one CREATE INDEX or DROP INDEX statement per input**.
-Multiple statements and unknown execution context produce incomplete reports.
-Transaction control and timeout analysis are planned, not implemented yet.
+Currently covers CREATE INDEX, DROP INDEX, BEGIN/START TRANSACTION and
+COMMIT/ROLLBACK, including WORK/TRANSACTION suffixes. Execution modes distinguish
+separate dispatch, a single simple-query message and an existing transaction.
+Unknown context and unsupported statements produce incomplete reports.
+Timeout and savepoint analysis are planned, not implemented yet.
 This is not a catalog validator or deployment safety certificate. Relation
 kind and workload require manual review; no automatic SQL rewriting occurs.
 
@@ -37,6 +39,20 @@ The first review exits 0; the second reports ML101 and exits 1. The input is
 copied from a migration runner's integration test, not production data. Its
 fixed revision and MIT notice are in [THIRD_PARTY.md](THIRD_PARTY.md).
 No database or private infrastructure is required.
+
+Compare the same multi-statement migration under two runner configurations:
+
+```text
+moon run cmd/main -- fixtures/batch-indexes.sql separate
+moon run cmd/main -- fixtures/batch-indexes.sql simple
+```
+
+Separate dispatch exits 0; one simple-query message reports ML101 and exits 1.
+A COMMIT inside such a message does not make its following statement individually
+dispatched. Runner-specific comments are ordinary comments; callers must supply
+the mode after inspecting the runner. Unknown earlier statements taint later
+context. Diagnostics describe static constraints assuming preceding supported
+statements succeed; this is not an execution trace after a runtime failure.
 
 Import `cn-xjr/migration_lens`. Public API: `review_sql`, `Execution`, `Report`,
 `Diagnostic`, `Severity`, `Span`. Reports provide `exit_code`, `to_text` and
