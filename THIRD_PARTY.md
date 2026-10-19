@@ -14,6 +14,11 @@ the copied SQL fixtures below. No Squawk implementation is copied.
   <https://github.com/moonbitlang/x>
 * MoonBit core — Apache-2.0; supplied with the toolchain.
   <https://github.com/moonbitlang/core>
+* moonbitlang/async 0.22.5 — Apache-2.0; standalone validation scripts only,
+  not a runtime library dependency. <https://github.com/moonbitlang/async>
+* CI uses actions/checkout (MIT), hustcer/setup-moonbit (MIT), GitHub-hosted
+  runners and the official PostgreSQL 18 container (PostgreSQL License plus
+  image dependency notices). These are validation resources, not copied code.
 
 Distributions retain their own licenses; the root license does not replace them.
 

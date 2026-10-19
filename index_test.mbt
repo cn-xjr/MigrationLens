@@ -56,3 +56,31 @@ test "uncovered input is never a pass and later statements are retained" {
     0,
   )
 }
+
+///|
+test "JSON serialization round trip retains original source and diagnostics" {
+  for
+    sql in [
+      "-- 😀\r\nDROP INDEX idx;", "DO $$ BEGIN; END $$; DROP INDEX idx;", "SELECT 'unterminated",
+    ] {
+    let report = @migration_lens.review_sql(sql, execution=SeparateStatements)
+    let encoded = report.to_json()
+    assert_eq(@json.parse(encoded.stringify()), encoded)
+    assert_eq(report.source, sql)
+  }
+}
+
+///|
+test "NUL oversized input and deep syntax cannot silently pass" {
+  for
+    sql in [
+      "-- \u0000\n",
+      "a".repeat(1000001),
+      "CREATE INDEX a ON t (" + "(".repeat(129) + "id" + ")".repeat(129) + ");",
+    ] {
+    assert_eq(
+      @migration_lens.review_sql(sql, execution=SeparateStatements).exit_code(),
+      2,
+    )
+  }
+}

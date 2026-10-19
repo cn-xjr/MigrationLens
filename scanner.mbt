@@ -24,6 +24,20 @@ fn word_unit(c : UInt16) -> Bool {
 // Comments are blanked only in the parser copy, retaining newlines and offsets.
 // Quoted regions remain opaque to statement splitting and keyword recognition.
 fn scan(source : String) -> Scan {
+  if source.length() > 1000000 || source.code_units().any(c => c == 0) {
+    return {
+      fragments: [],
+      errors: [
+        finding(
+          "ML004",
+          Incomplete,
+          { start: 0, end: source.length(), },
+          "Input exceeds 1,000,000 UTF-16 units or contains NUL",
+          "Split large files at known statement boundaries and reject NUL-containing SQL.",
+        ),
+      ],
+    }
+  }
   let fragments = []
   let errors = []
   let units = source.code_units()
@@ -149,7 +163,7 @@ fn scan(source : String) -> Scan {
           let delimiter = source[begin:i].to_owned()
           let mut closed = false
           while i < n && !closed {
-            if source[i:].has_prefix(delimiter) {
+            if units[i] == 36 && source[i:].has_prefix(delimiter) {
               i += delimiter.length()
               closed = true
             } else {

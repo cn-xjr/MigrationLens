@@ -1,4 +1,9 @@
 import {
   "moonbit-community/sqlparser" @sql,
   "moonbitlang/core/debug",
+  "moonbitlang/core/string",
 }
+
+import {
+  "moonbitlang/core/json",
+} for "test"

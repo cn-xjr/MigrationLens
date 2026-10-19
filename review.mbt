@@ -4,6 +4,10 @@ priv enum Command {
   Begin
   Commit
   Rollback
+  SetTimeout(scoped~ : Bool, Timeout)
+  Savepoint(String)
+  RollbackTo(String)
+  Release(String)
   Unsupported
 }
 
@@ -21,6 +25,33 @@ priv enum Transaction {
 // validates index syntax; unrecognized SQL never becomes an assumed no-op.
 fn classify(fragment : Fragment) -> Command {
   match fragment.words[:] {
+    ["SET", "LOCAL", "LOCK_TIMEOUT", "=" | "TO", value] =>
+      match parse_timeout(value) {
+        Some(t) => SetTimeout(scoped=true, t)
+        None => Unsupported
+      }
+    ["SET", "SESSION", "LOCK_TIMEOUT", "=" | "TO", value]
+    | ["SET", "LOCK_TIMEOUT", "=" | "TO", value] =>
+      match parse_timeout(value) {
+        Some(t) => SetTimeout(scoped=false, t)
+        None => Unsupported
+      }
+    ["RESET", "LOCK_TIMEOUT" | "ALL"] => SetTimeout(scoped=false, Default)
+    ["SAVEPOINT", name] =>
+      match savepoint_name(name) {
+        Some(n) => Savepoint(n)
+        None => Unsupported
+      }
+    ["RELEASE", name] | ["RELEASE", "SAVEPOINT", name] =>
+      match savepoint_name(name) {
+        Some(n) => Release(n)
+        None => Unsupported
+      }
+    ["ROLLBACK", "TO", name] | ["ROLLBACK", "TO", "SAVEPOINT", name] =>
+      match savepoint_name(name) {
+        Some(n) => RollbackTo(n)
+        None => Unsupported
+      }
     ["BEGIN"]
     | ["BEGIN", "WORK"]
     | ["BEGIN", "TRANSACTION"]
@@ -29,6 +60,20 @@ fn classify(fragment : Fragment) -> Command {
     ["ROLLBACK"] | ["ROLLBACK", "WORK"] | ["ROLLBACK", "TRANSACTION"] =>
       Rollback
     ["CREATE", ..] | ["DROP", ..] => {
+      let mut depth = 0
+      for word in fragment.words {
+        if word == "(" {
+          depth += 1
+        } else if word == ")" {
+          depth -= 1
+        }
+        if depth < 0 || depth > 128 {
+          return Unsupported
+        }
+      }
+      if depth != 0 {
+        return Unsupported
+      }
       let parsed = @sql.parse_sql(dialect=@sql.Postgres::{ }, fragment.text) catch {
         _ => return Unsupported
       }
@@ -46,17 +91,25 @@ fn classify(fragment : Fragment) -> Command {
 ///|
 /// Analyze PostgreSQL 18 index statements and transaction control. The caller
 /// must describe dispatch; comments never override the explicit execution mode.
-pub fn review_sql(source : String, execution~ : Execution) -> Report {
+pub fn review_sql(
+  source : String,
+  execution~ : Execution,
+  initial_transaction~ : Bool = false,
+  require_lock_timeout~ : Bool = false,
+) -> Report {
   let scanned = scan(source)
   let diagnostics = scanned.errors.copy()
   let mut complete = diagnostics.is_empty()
-  let mut tx : Transaction = match execution {
-    ExistingTransaction => External
-    Unknown => Uncertain
-    _ => Idle
+  let mut tx : Transaction = if execution == Unknown {
+    Uncertain
+  } else if execution == ExistingTransaction || initial_transaction {
+    External
+  } else {
+    Idle
   }
   let batch = execution == SimpleQuery && scanned.fragments.length() > 1
   let mut open_span : Span = { start: 0, end: 0, }
+  let timeouts = TimeoutState::new()
   if execution == Unknown {
     complete = false
     diagnostics.push(
@@ -73,9 +126,11 @@ pub fn review_sql(source : String, execution~ : Execution) -> Report {
     // PostgreSQL begins an implicit block for each transaction segment in a
     // multi-statement simple-query message, including after an explicit COMMIT.
     if batch && tx == Idle {
+      timeouts.begin()
       tx = Implicit
     }
-    match classify(fragment) {
+    let command = classify(fragment)
+    match command {
       Begin =>
         if tx == Explicit || tx == External {
           diagnostics.push(
@@ -88,10 +143,18 @@ pub fn review_sql(source : String, execution~ : Execution) -> Report {
             ),
           )
         } else if tx != Uncertain {
+          if tx == Idle {
+            timeouts.begin()
+          }
           tx = Explicit
           open_span = fragment.span
         }
       Commit | Rollback => {
+        if tx == Uncertain {
+          timeouts.taint()
+        } else if tx != Idle {
+          timeouts.finish(rollback=command is Rollback)
+        }
         if tx == Idle {
           diagnostics.push(
             finding(
@@ -119,7 +182,10 @@ pub fn review_sql(source : String, execution~ : Execution) -> Report {
           tx = Idle
         }
       }
-      Index(concurrent) =>
+      Index(concurrent) => {
+        if require_lock_timeout {
+          timeouts.check(fragment.span, diagnostics)
+        }
         if concurrent {
           if tx == Uncertain {
             complete = false
@@ -154,7 +220,74 @@ pub fn review_sql(source : String, execution~ : Execution) -> Report {
             ),
           )
         }
+      }
+      SetTimeout(scoped~, value) =>
+        if tx == Uncertain {
+          timeouts.taint()
+        } else if scoped {
+          if tx == Idle {
+            diagnostics.push(
+              finding(
+                "ML200",
+                Warning,
+                fragment.span,
+                "SET LOCAL outside a transaction has no effect",
+                "Use a session setting for separately dispatched concurrent index operations.",
+              ),
+            )
+          } else {
+            timeouts.scoped = Some(value)
+          }
+        } else {
+          timeouts.session = value
+          timeouts.scoped = None
+        }
+      Savepoint(name) | RollbackTo(name) | Release(name) =>
+        if tx != Explicit && tx != External {
+          let uncertain = tx == Uncertain
+          diagnostics.push(
+            finding(
+              "ML203",
+              if uncertain {
+                Incomplete
+              } else {
+                Error
+              },
+              fragment.span,
+              "Savepoint operation requires an explicit transaction",
+              "Declare or begin an explicit transaction; an implicit simple-query block is insufficient.",
+            ),
+          )
+          if uncertain {
+            complete = false
+          }
+          timeouts.taint()
+          tx = Uncertain
+        } else if command is Savepoint(_) {
+          timeouts.mark(name)
+        } else if !timeouts.restore(name, release=command is Release(_)) {
+          let external = tx == External
+          diagnostics.push(
+            finding(
+              "ML204",
+              if external {
+                Incomplete
+              } else {
+                Error
+              },
+              fragment.span,
+              "Savepoint target has not been established by this input",
+              "Use an existing savepoint name; external savepoint state is not inferred.",
+            ),
+          )
+          if external {
+            complete = false
+          }
+          timeouts.taint()
+          tx = Uncertain
+        }
       Unsupported => {
+        timeouts.taint()
         complete = false
         tx = Uncertain
         diagnostics.push(

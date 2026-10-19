@@ -55,7 +55,6 @@ test "no nested BEGIN and ending caller transaction are visible" {
   for
     sql in [
       "BEGIN READ ONLY;", "COMMIT AND CHAIN;", "DROP INDEX a ON t;", "BEGIN SELECT 1",
-      "SAVEPOINT a;",
     ] {
     assert_eq(
       @migration_lens.review_sql(sql, execution=SeparateStatements).exit_code(),

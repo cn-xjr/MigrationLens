@@ -1,0 +1,76 @@
+///|
+import {
+  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.5/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn psql(steps : Array[String]) -> @shell.Output {
+  let args = [
+    "-X", "-qAt", "-v", "ON_ERROR_STOP=1", "-v", "VERBOSITY=sqlstate", "-c", "SET lock_timeout=0",
+  ]
+  for sql in steps {
+    args.push("-c")
+    args.push(sql)
+  }
+  @shell.Cmd("psql", args).output(timeout_ms=30000)
+}
+
+///|
+async fn main {
+  guard @env.get_env_var("MIGRATIONLENS_DISPOSABLE_DB") == Some("1") &&
+    @env.get_env_var("PGDATABASE") == Some("migrationlens_test") else {
+    fail(
+      "Set MIGRATIONLENS_DISPOSABLE_DB=1 and PGDATABASE=migrationlens_test for a disposable PostgreSQL 18 database",
+    )
+  }
+  let version = psql(["SHOW server_version_num"])
+  version.check()
+  guard version.stdout().trim().has_prefix("18") else {
+    fail("PostgreSQL 18 required")
+  }
+  let setup = psql(["CREATE TABLE migrationlens_probe(id integer)"])
+  setup.check()
+  let single = psql([
+    "CREATE INDEX CONCURRENTLY ml_probe_a ON migrationlens_probe(id)",
+  ])
+  single.check()
+  for
+    steps in [
+      [
+        "BEGIN", "CREATE INDEX CONCURRENTLY ml_probe_bad ON migrationlens_probe(id)",
+      ],
+      [
+        "SET lock_timeout='3s'; CREATE INDEX CONCURRENTLY ml_probe_bad ON migrationlens_probe(id)",
+      ],
+      [
+        "BEGIN; COMMIT; CREATE INDEX CONCURRENTLY ml_probe_bad ON migrationlens_probe(id)",
+      ],
+    ] {
+    let output = psql(steps)
+    assert_true(output.exit_code() != 0)
+    assert_true(output.stderr().contains("25001"), msg=output.stderr())
+  }
+  let separate = psql([
+    "SET lock_timeout='3s'", "CREATE INDEX CONCURRENTLY ml_probe_b ON migrationlens_probe(id)",
+  ])
+  separate.check()
+  for
+    steps in [
+      ["SET LOCAL lock_timeout='3s'", "SHOW lock_timeout"],
+      ["BEGIN", "SET LOCAL lock_timeout='3s'", "COMMIT", "SHOW lock_timeout"],
+      [
+        "BEGIN", "SAVEPOINT a", "SET LOCAL lock_timeout='3s'", "ROLLBACK TO a", "SHOW lock_timeout",
+        "COMMIT",
+      ],
+      ["BEGIN", "SET lock_timeout='3s'", "ROLLBACK", "SHOW lock_timeout"],
+    ] {
+    let output = psql(steps)
+    output.check()
+    assert_eq(output.stdout().trim().to_owned(), "0")
+  }
+  let cleanup = psql(["DROP TABLE migrationlens_probe"])
+  cleanup.check()
+  println("PostgreSQL 18 transaction and timeout execution probes passed")
+}

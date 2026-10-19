@@ -1,0 +1,80 @@
+///|
+import {
+  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.5/shell",
+  "moonbitlang/async@0.22.5/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  let moon = @env.get_env_var("MIGRATIONLENS_MOON").unwrap_or("moon")
+  let target = @env.args().get(1).unwrap_or("wasm")
+  guard ["wasm", "wasm-gc", "js", "native"].contains(target) else {
+    fail("invalid target")
+  }
+  let cases : Array[(String, String, Bool, Int32)] = [
+    ("fixtures/postgres-migrations-concurrent.sql", "separate", false, 0),
+    ("fixtures/postgres-migrations-no-transaction.sql", "transaction", false, 1),
+    ("fixtures/postgres-migrations-concurrent.sql", "unknown", false, 2),
+    ("fixtures/batch-indexes.sql", "simple", false, 1),
+    ("fixtures/batch-indexes.sql", "separate", false, 0),
+    ("fixtures/session-timeout.sql", "separate", true, 0),
+    ("fixtures/session-timeout.sql", "simple", true, 1),
+    ("fixtures/savepoint-timeout.sql", "separate", true, 1),
+    ("fixtures/river-006-bulk-unique.sql", "separate", false, 2),
+  ]
+  for (file, mode, timeout, expected) in cases {
+    let args = [
+      "run", "--target", target, "cmd/main", "--", file, mode, "--json",
+    ]
+    if timeout {
+      args.push("--require-lock-timeout")
+    }
+    let output = @shell.Cmd(moon, args).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), expected, msg=file)
+    let data = @json.parse(output.stdout())
+    if file == "fixtures/savepoint-timeout.sql" {
+      assert_true(output.stdout().contains("ML201"))
+    }
+    if file == "fixtures/river-006-bulk-unique.sql" {
+      assert_true(output.stdout().contains("ML003"))
+    }
+    assert_eq(@json.parse(data.stringify()), data)
+    let again = @shell.Cmd(moon, args).output(timeout_ms=60000)
+    assert_eq(again.stdout(), output.stdout(), msg="deterministic report")
+  }
+  @fs.mkdir("_build", allow_exist=true)
+  let initial = @shell.Cmd(moon, [
+    "run", "--target", target, "cmd/main", "--", "fixtures/close-transaction.sql",
+    "simple", "--initial-transaction", "--json",
+  ]).output(timeout_ms=60000)
+  assert_eq(initial.exit_code(), 1)
+  assert_true(
+    initial.stdout().contains("ML105") && initial.stdout().contains("ML101"),
+  )
+  for
+    invalid_args in [
+      [],
+      ["_build/missing-migrationlens-file.sql", "separate"],
+      ["fixtures/batch-indexes.sql", "bogus"],
+      ["fixtures/batch-indexes.sql", "separate", "--bogus"],
+    ] {
+    let args = ["run", "--target", target, "cmd/main", "--"]
+    for arg in invalid_args {
+      args.push(arg)
+    }
+    let output = @shell.Cmd(moon, args).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), 2)
+  }
+  @fs.write_file("_build/invalid-utf8.sql", b"\xff\xfe\x00")
+  let invalid = @shell.Cmd(moon, [
+    "run", "--target", target, "cmd/main", "--", "_build/invalid-utf8.sql", "separate",
+  ]).output(timeout_ms=60000)
+  assert_eq(invalid.exit_code(), 2)
+  assert_true(invalid.stdout().contains("Cannot read UTF-8"))
+  println(
+    "CLI fixture, JSON, determinism and malformed UTF-8 checks passed on \{target}",
+  )
+}

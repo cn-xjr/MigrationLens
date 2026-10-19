@@ -1,5 +1,8 @@
 ///|
-/// How the caller sends this input. Unknown never establishes a passing review.
+/// How the caller sends this input. ExistingTransaction is shorthand for
+/// separate dispatch in an existing transaction. For simple-query dispatch in
+/// an existing transaction, use SimpleQuery with initial_transaction=true.
+/// Unknown never establishes a passing review.
 pub(all) enum Execution {
   SeparateStatements
   SimpleQuery
@@ -34,6 +37,7 @@ pub(all) struct Diagnostic {
 /// Source is retained verbatim. Complete means coverage of this rule set only.
 pub(all) struct Report {
   source : String
+  /// Lexically delimited statements; an ambiguous malformed suffix is excluded.
   statements : Int32
   complete : Bool
   diagnostics : Array[Diagnostic]

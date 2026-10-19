@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn review_sql(String, execution~ : Execution) -> Report
+pub fn review_sql(String, execution~ : Execution, initial_transaction? : Bool, require_lock_timeout? : Bool) -> Report
 
 // Errors
 

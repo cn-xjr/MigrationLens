@@ -21,8 +21,41 @@ jobs:
       - run: moon test --target wasm --deny-warn
       - run: moon test --target wasm-gc --deny-warn
       - run: moon test --target js --deny-warn
+      - run: moon fmt --check scripts/e2e.mbtx scripts/postgres_probe.mbtx
+      - run: moon run scripts/e2e.mbtx wasm
+      - run: moon run scripts/e2e.mbtx wasm-gc
+      - run: moon run scripts/e2e.mbtx js
       - run: moon run cmd/main -- fixtures/postgres-migrations-concurrent.sql separate
       - if: runner.os != 'Windows'
         run: moon test --target native --deny-warn
       - if: runner.os != 'Windows'
         run: moon run --target native cmd/main -- fixtures/postgres-migrations-concurrent.sql separate
+      - if: runner.os != 'Windows'
+        run: moon run scripts/e2e.mbtx native
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: migrationlens_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: migrationlens_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGDATABASE: migrationlens_test
+      PGUSER: postgres
+      PGPASSWORD: migrationlens_test
+      MIGRATIONLENS_DISPOSABLE_DB: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hustcer/setup-moonbit@v1
+      - run: psql --version
+      - run: moon run scripts/postgres_probe.mbtx
