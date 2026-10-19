@@ -67,3 +67,14 @@ runtime is tested separately using the same stable compiler version.
 Remote CI results require a pushed commit and an actual Actions run; a supplied
 workflow does not establish success. Local PostgreSQL probe execution is also
 reported separately from compiling the probe.
+
+## Fresh-runner dependency bootstrap
+
+The first remote run at `304a6c7` passed all three portable jobs, but the
+PostgreSQL job stopped before connecting to its database: the new runner had
+no registry index for the standalone script's `moonbitlang/async` dependency.
+Its log reported `Failed to resolve the module dependency graph`, not a
+PostgreSQL assertion failure. The same failure was reproduced with an empty
+MOON_HOME registry. Every job using standalone scripts must run `moon update`
+after installing the toolchain. The PostgreSQL job also strictly checks the
+probe before executing it so dependency/compile failures are a separate step.

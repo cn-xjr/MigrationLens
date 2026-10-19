@@ -57,5 +57,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: hustcer/setup-moonbit@v1
+      - run: moon version --all
+      - run: moon update
+      - run: moon check scripts/postgres_probe.mbtx --deny-warn
       - run: psql --version
       - run: moon run scripts/postgres_probe.mbtx
