@@ -1,0 +1,28 @@
+name: CI
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hustcer/setup-moonbit@v1
+      - run: moon version --all
+      - run: moon update
+      - run: moon fmt --check
+      - run: moon info
+      - run: git diff --exit-code
+      - run: moon check --target all --deny-warn
+      - run: moon test --target wasm --deny-warn
+      - run: moon test --target wasm-gc --deny-warn
+      - run: moon test --target js --deny-warn
+      - run: moon run cmd/main -- fixtures/postgres-migrations-concurrent.sql separate
+      - if: runner.os != 'Windows'
+        run: moon test --target native --deny-warn
+      - if: runner.os != 'Windows'
+        run: moon run --target native cmd/main -- fixtures/postgres-migrations-concurrent.sql separate
