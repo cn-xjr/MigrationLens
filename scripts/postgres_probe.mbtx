@@ -186,6 +186,29 @@ async fn main {
     ] {
     rejected(name, steps, "3B001")
   }
+  let chain = successful(
+    "chain discards local override and starts a fresh baseline",
+    [
+      "BEGIN", "SET lock_timeout='2s'", "SET LOCAL lock_timeout=0", "END AND CHAIN",
+      "ABORT", "SHOW lock_timeout",
+    ],
+  )
+  assert_eq(chain.stdout().trim().to_owned(), "2s")
+  let rolled = successful("rollback chain restores prior session setting", [
+    "BEGIN", "SET lock_timeout='2s'", "ABORT AND CHAIN", "END", "SHOW lock_timeout",
+  ])
+  assert_eq(rolled.stdout().trim().to_owned(), "0")
+  rejected("idle chaining", ["COMMIT AND CHAIN"], "25P01")
+  rejected(
+    "implicit chaining",
+    ["SET lock_timeout=100; ROLLBACK AND CHAIN"],
+    "25P01",
+  )
+  rejected(
+    "chained concurrent index",
+    ["BEGIN", "COMMIT AND CHAIN", "DROP INDEX CONCURRENTLY ml_probe_a"],
+    "25001",
+  )
   let _ = successful("remove disposable probe table", [
     "DROP TABLE migrationlens_probe",
   ])

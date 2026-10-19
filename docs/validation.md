@@ -76,6 +76,13 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+The transaction-chain extension adds unit cases for END/ABORT aliases, every
+WORK/TRANSACTION suffix, AND NO CHAIN, fresh timeout baselines, cleared savepoints,
+caller transactions and invalid idle/implicit chaining. Its authored fixture is
+`fixtures/chained-transaction.sql`. The oracle now checks chain timeout values
+and SQLSTATE 25P01/25001. These added database cases have not yet run locally or
+in remote CI; compiling the probe does not establish server agreement.
+
 Formatting, generated interfaces, strict compilation and runtime tests are
 separate checks. Windows native runtime needs MSVC Build Tools/Windows SDK;
 native typechecking alone is not recorded as native execution. Linux native

@@ -2,8 +2,7 @@
 priv enum Command {
   Index(Bool)
   Begin
-  Commit
-  Rollback
+  Finish(rollback~ : Bool, chain~ : Bool)
   SetTimeout(scoped~ : Bool, Timeout)
   Savepoint(String)
   RollbackTo(String)
@@ -56,9 +55,21 @@ fn classify(fragment : Fragment) -> Command {
     | ["BEGIN", "WORK"]
     | ["BEGIN", "TRANSACTION"]
     | ["START", "TRANSACTION"] => Begin
-    ["COMMIT"] | ["COMMIT", "WORK"] | ["COMMIT", "TRANSACTION"] => Commit
-    ["ROLLBACK"] | ["ROLLBACK", "WORK"] | ["ROLLBACK", "TRANSACTION"] =>
-      Rollback
+    ["COMMIT" | "END" | "ROLLBACK" | "ABORT", .. rest] => {
+      let suffix = match rest {
+        ["WORK" | "TRANSACTION", .. tail] => tail
+        _ => rest
+      }
+      let chain = match suffix {
+        [] | ["AND", "NO", "CHAIN"] => false
+        ["AND", "CHAIN"] => true
+        _ => return Unsupported
+      }
+      Finish(
+        rollback=fragment.words[0] == "ROLLBACK" || fragment.words[0] == "ABORT",
+        chain~,
+      )
+    }
     ["CREATE", ..] | ["DROP", ..] => {
       let mut depth = 0
       for word in fragment.words {
@@ -149,11 +160,25 @@ pub fn review_sql(
           tx = Explicit
           open_span = fragment.span
         }
-      Commit | Rollback => {
+      Finish(rollback~, chain~) => {
+        if chain && (tx == Idle || tx == Implicit) {
+          diagnostics.push(
+            finding(
+              "ML106",
+              Error,
+              fragment.span,
+              "AND CHAIN requires an explicit transaction",
+              "Begin an explicit transaction before chaining; an implicit simple-query block is insufficient.",
+            ),
+          )
+          timeouts.taint()
+          tx = Uncertain
+          continue
+        }
         if tx == Uncertain {
           timeouts.taint()
         } else if tx != Idle {
-          timeouts.finish(rollback=command is Rollback)
+          timeouts.finish(rollback~)
         }
         if tx == Idle {
           diagnostics.push(
@@ -179,7 +204,13 @@ pub fn review_sql(
         }
         // Unknown SQL can also change the session; do not restore certainty.
         if tx != Uncertain {
-          tx = Idle
+          if chain {
+            timeouts.begin()
+            tx = Explicit
+            open_span = fragment.span
+          } else {
+            tx = Idle
+          }
         }
       }
       Index(concurrent) => {

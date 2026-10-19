@@ -23,6 +23,7 @@ async fn main {
     ("fixtures/session-timeout.sql", "separate", true, 0),
     ("fixtures/session-timeout.sql", "simple", true, 1),
     ("fixtures/savepoint-timeout.sql", "separate", true, 1),
+    ("fixtures/chained-transaction.sql", "separate", true, 0),
     ("fixtures/river-006-bulk-unique.sql", "separate", false, 2),
   ]
   for (file, mode, timeout, expected) in cases {

@@ -6,7 +6,15 @@ operations conflicting with a declared existing transaction. Source is retained
 verbatim. Unsupported SQL is explicitly incomplete, never silently discarded.
 
 Currently covers CREATE INDEX, DROP INDEX, BEGIN/START TRANSACTION and
-COMMIT/ROLLBACK, including WORK/TRANSACTION suffixes. Execution modes distinguish
+COMMIT/ROLLBACK, including WORK/TRANSACTION suffixes.
+END/ABORT aliases and AND [NO] CHAIN are supported. Chaining starts a new explicit
+transaction, clears savepoints/local settings and uses the committed or rolled
+back session settings as its new baseline. Chaining without an explicit
+transaction reports ML106; later context becomes unknown. Try
+`moon run cmd/main -- fixtures/chained-transaction.sql separate --require-lock-timeout`.
+The transaction semantics follow [PostgreSQL 18 COMMIT](https://www.postgresql.org/docs/18/sql-commit.html)
+and [ROLLBACK](https://www.postgresql.org/docs/18/sql-rollback.html).
+Execution modes distinguish
 separate dispatch, a single simple-query message and an existing transaction.
 Unknown context and unsupported statements produce incomplete reports.
 Dispatch and initial state are independent: use `initial_transaction=true`
