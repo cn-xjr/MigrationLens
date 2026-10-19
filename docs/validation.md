@@ -76,6 +76,14 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+DROP INDEX regressions cover qualified/quoted names (including embedded comma,
+semicolon and Unicode), ordinary name lists, concurrent multi-name/CASCADE
+errors, malformed identifiers and unsupported trailing tokens. The authored
+`fixtures/drop-indexes.sql` exercises ML107 in the CLI suite. Additional oracle
+cases expect SQLSTATE 0A000 for both forbidden concurrent combinations and
+execute qualified RESTRICT and ordinary multi-name drops. These new database
+cases are pending execution; no new remote run is claimed before a push.
+
 The transaction-chain extension adds unit cases for END/ABORT aliases, every
 WORK/TRANSACTION suffix, AND NO CHAIN, fresh timeout baselines, cleared savepoints,
 caller transactions and invalid idle/implicit chaining. Its authored fixture is

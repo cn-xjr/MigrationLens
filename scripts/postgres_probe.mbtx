@@ -209,6 +209,22 @@ async fn main {
     ["BEGIN", "COMMIT AND CHAIN", "DROP INDEX CONCURRENTLY ml_probe_a"],
     "25001",
   )
+  rejected(
+    "concurrent drop multiple names",
+    ["DROP INDEX CONCURRENTLY ml_probe_a, ml_probe_b"],
+    "0A000",
+  )
+  rejected(
+    "concurrent drop cascade",
+    ["DROP INDEX CONCURRENTLY ml_probe_a CASCADE"],
+    "0A000",
+  )
+  let _ = successful("qualified concurrent drop with RESTRICT", [
+    "DROP INDEX CONCURRENTLY public.ml_probe_a RESTRICT",
+  ])
+  let _ = successful("ordinary multi-name drop", [
+    "DROP INDEX IF EXISTS public.ml_probe_b, public.ml_probe_missing CASCADE",
+  ])
   let _ = successful("remove disposable probe table", [
     "DROP TABLE migrationlens_probe",
   ])

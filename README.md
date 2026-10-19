@@ -28,6 +28,15 @@ Timeout policy is opt-in and preserves existing callers' default behavior.
 This is not a catalog validator or deployment safety certificate. Relation
 kind and workload require manual review; no automatic SQL rewriting occurs.
 
+DROP INDEX supports optional IF EXISTS, schema-qualified/quoted names,
+name lists and CASCADE/RESTRICT. Concurrent drops with multiple names or
+CASCADE report ML107, following [PostgreSQL 18 DROP INDEX](https://www.postgresql.org/docs/18/sql-dropindex.html).
+Ordinary multi-name drops still warn about blocking access. Unsupported trailing
+clauses remain incomplete. Partitioned indexes, constraint dependencies and
+temporary relations require catalog knowledge and remain outside scope.
+Example: `moon run cmd/main -- fixtures/drop-indexes.sql separate --json`
+reports ML107 and exits 1 without needing a database.
+
 ```mbt check
 ///|
 test "review an index migration" {

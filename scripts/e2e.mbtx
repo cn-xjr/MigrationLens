@@ -24,6 +24,7 @@ async fn main {
     ("fixtures/session-timeout.sql", "simple", true, 1),
     ("fixtures/savepoint-timeout.sql", "separate", true, 1),
     ("fixtures/chained-transaction.sql", "separate", true, 0),
+    ("fixtures/drop-indexes.sql", "separate", false, 1),
     ("fixtures/river-006-bulk-unique.sql", "separate", false, 2),
   ]
   for (file, mode, timeout, expected) in cases {
@@ -38,6 +39,9 @@ async fn main {
     let data = @json.parse(output.stdout())
     if file == "fixtures/savepoint-timeout.sql" {
       assert_true(output.stdout().contains("ML201"))
+    }
+    if file == "fixtures/drop-indexes.sql" {
+      assert_true(output.stdout().contains("ML107"))
     }
     if file == "fixtures/river-006-bulk-unique.sql" {
       assert_true(output.stdout().contains("ML003"))

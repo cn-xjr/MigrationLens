@@ -1,6 +1,7 @@
 ///|
 priv enum Command {
   Index(Bool)
+  InvalidIndex(String)
   Begin
   Finish(rollback~ : Bool, chain~ : Bool)
   SetTimeout(scoped~ : Bool, Timeout)
@@ -70,7 +71,8 @@ fn classify(fragment : Fragment) -> Command {
         chain~,
       )
     }
-    ["CREATE", ..] | ["DROP", ..] => {
+    ["DROP", "INDEX", ..] => classify_drop(fragment.words[:])
+    ["CREATE", ..] => {
       let mut depth = 0
       for word in fragment.words {
         if word == "(" {
@@ -90,8 +92,6 @@ fn classify(fragment : Fragment) -> Command {
       }
       match parsed.stmts[:] {
         [@sql.CreateIndex(index)] => Index(index.concurrently)
-        [@sql.DropIndex(index)] if index.table_name is None =>
-          Index(index.concurrently)
         _ => Unsupported
       }
     }
@@ -212,6 +212,19 @@ pub fn review_sql(
             tx = Idle
           }
         }
+      }
+      InvalidIndex(message) => {
+        diagnostics.push(
+          finding(
+            "ML107",
+            Error,
+            fragment.span,
+            message,
+            "DROP INDEX CONCURRENTLY accepts one index and no CASCADE; split names into separately dispatched statements and inspect dependencies.",
+          ),
+        )
+        timeouts.taint()
+        tx = Uncertain
       }
       Index(concurrent) => {
         if require_lock_timeout {
