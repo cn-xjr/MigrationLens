@@ -3,6 +3,7 @@ import {
   "moonbitlang/async@0.22.5",
   "moonbitlang/async@0.22.5/shell",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }
 
 ///|
@@ -18,6 +19,33 @@ async fn psql(steps : Array[String]) -> @shell.Output {
 }
 
 ///|
+async fn successful(name : String, steps : Array[String]) -> @shell.Output {
+  println("probe: \{name}")
+  let output = psql(steps)
+  guard output.exit_code() == 0 else {
+    fail(
+      "probe \{name}: psql exit=\{output.exit_code()}; stderr=\{output.stderr()}",
+    )
+  }
+  output
+}
+
+///|
+async fn rejected(
+  name : String,
+  steps : Array[String],
+  sqlstate : String,
+) -> Unit {
+  println("probe: \{name} (expected SQLSTATE \{sqlstate})")
+  let output = psql(steps)
+  guard output.exit_code() != 0 && output.stderr().contains(sqlstate) else {
+    fail(
+      "probe \{name}: expected SQLSTATE \{sqlstate}; exit=\{output.exit_code()}; stderr=\{output.stderr()}",
+    )
+  }
+}
+
+///|
 async fn main {
   guard @env.get_env_var("MIGRATIONLENS_DISPOSABLE_DB") == Some("1") &&
     @env.get_env_var("PGDATABASE") == Some("migrationlens_test") else {
@@ -25,52 +53,141 @@ async fn main {
       "Set MIGRATIONLENS_DISPOSABLE_DB=1 and PGDATABASE=migrationlens_test for a disposable PostgreSQL 18 database",
     )
   }
-  let version = psql(["SHOW server_version_num"])
-  version.check()
-  guard version.stdout().trim().has_prefix("18") else {
-    fail("PostgreSQL 18 required")
+  let version = successful("server version", ["SHOW server_version_num"])
+  let version_number = @string.parse_int(version.stdout().trim())
+  guard version_number >= 180000 && version_number < 190000 else {
+    fail("PostgreSQL 18 required; server_version_num=\{version_number}")
   }
-  let setup = psql(["CREATE TABLE migrationlens_probe(id integer)"])
-  setup.check()
-  let single = psql([
+  println("server_version_num=\{version_number}")
+  let _ = successful("create disposable probe table", [
+    "CREATE TABLE migrationlens_probe(id integer)",
+  ])
+  let _ = successful("single concurrent index", [
     "CREATE INDEX CONCURRENTLY ml_probe_a ON migrationlens_probe(id)",
   ])
-  single.check()
   for
-    steps in [
-      [
-        "BEGIN", "CREATE INDEX CONCURRENTLY ml_probe_bad ON migrationlens_probe(id)",
-      ],
-      [
-        "SET lock_timeout='3s'; CREATE INDEX CONCURRENTLY ml_probe_bad ON migrationlens_probe(id)",
-      ],
-      [
-        "BEGIN; COMMIT; CREATE INDEX CONCURRENTLY ml_probe_bad ON migrationlens_probe(id)",
-      ],
+    (name, steps) in [
+      (
+        "existing explicit transaction",
+        [
+          "BEGIN", "CREATE INDEX CONCURRENTLY ml_probe_bad ON migrationlens_probe(id)",
+        ],
+      ),
+      (
+        "implicit simple-query transaction",
+        [
+          "SET lock_timeout='3s'; CREATE INDEX CONCURRENTLY ml_probe_bad ON migrationlens_probe(id)",
+        ],
+      ),
+      (
+        "simple-query after COMMIT",
+        [
+          "BEGIN; COMMIT; CREATE INDEX CONCURRENTLY ml_probe_bad ON migrationlens_probe(id)",
+        ],
+      ),
+      (
+        "batch closes caller transaction",
+        [
+          "BEGIN", "COMMIT; CREATE INDEX CONCURRENTLY ml_probe_bad ON migrationlens_probe(id)",
+        ],
+      ),
     ] {
-    let output = psql(steps)
-    assert_true(output.exit_code() != 0)
-    assert_true(output.stderr().contains("25001"), msg=output.stderr())
+    rejected(name, steps, "25001")
   }
-  let separate = psql([
+  let _ = successful("separate session SET and concurrent index", [
     "SET lock_timeout='3s'", "CREATE INDEX CONCURRENTLY ml_probe_b ON migrationlens_probe(id)",
   ])
-  separate.check()
   for
-    steps in [
-      ["SET LOCAL lock_timeout='3s'", "SHOW lock_timeout"],
-      ["BEGIN", "SET LOCAL lock_timeout='3s'", "COMMIT", "SHOW lock_timeout"],
-      [
-        "BEGIN", "SAVEPOINT a", "SET LOCAL lock_timeout='3s'", "ROLLBACK TO a", "SHOW lock_timeout",
-        "COMMIT",
-      ],
-      ["BEGIN", "SET lock_timeout='3s'", "ROLLBACK", "SHOW lock_timeout"],
+    (name, steps, expected) in [
+      (
+        "local SET outside transaction",
+        ["SET LOCAL lock_timeout='3s'", "SHOW lock_timeout"],
+        "0",
+      ),
+      (
+        "commit discards local SET",
+        ["BEGIN", "SET LOCAL lock_timeout='3s'", "COMMIT", "SHOW lock_timeout"],
+        "0",
+      ),
+      (
+        "rollback to savepoint restores setting",
+        [
+          "BEGIN", "SAVEPOINT a", "SET LOCAL lock_timeout='3s'", "ROLLBACK TO a",
+          "SHOW lock_timeout", "COMMIT",
+        ],
+        "0",
+      ),
+      (
+        "rollback cancels session SET",
+        ["BEGIN", "SET lock_timeout='3s'", "ROLLBACK", "SHOW lock_timeout"],
+        "0",
+      ),
+      (
+        "commit retains session SET",
+        ["BEGIN", "SET lock_timeout='3s'", "COMMIT", "SHOW lock_timeout"],
+        "3s",
+      ),
+      (
+        "session SET overrides local SET",
+        [
+          "BEGIN", "SET LOCAL lock_timeout=0", "SET SESSION lock_timeout='2s'", "SHOW lock_timeout",
+          "COMMIT",
+        ],
+        "2s",
+      ),
+      (
+        "commit restores session under local override",
+        [
+          "SET lock_timeout='3s'", "BEGIN", "SET LOCAL lock_timeout=0", "COMMIT",
+          "SHOW lock_timeout",
+        ],
+        "3s",
+      ),
+      (
+        "same-name savepoint selects most recent",
+        [
+          "BEGIN", "SET LOCAL lock_timeout=0", "SAVEPOINT a", "SET LOCAL lock_timeout='3s'",
+          "SAVEPOINT A", "SET LOCAL lock_timeout=0", "ROLLBACK TO a", "RELEASE a",
+          "SHOW lock_timeout", "COMMIT",
+        ],
+        "3s",
+      ),
+      (
+        "release retains current setting",
+        [
+          "BEGIN", "SAVEPOINT a", "SAVEPOINT b", "SET LOCAL lock_timeout='3s'", "RELEASE a",
+          "SHOW lock_timeout", "COMMIT",
+        ],
+        "3s",
+      ),
+      (
+        "quoted lower-case name matches unquoted",
+        ["BEGIN", "SAVEPOINT \"a\"", "RELEASE A", "SHOW lock_timeout", "COMMIT"],
+        "0",
+      ),
     ] {
-    let output = psql(steps)
-    output.check()
-    assert_eq(output.stdout().trim().to_owned(), "0")
+    let output = successful(name, steps)
+    assert_eq(output.stdout().trim().to_owned(), expected, msg=name)
   }
-  let cleanup = psql(["DROP TABLE migrationlens_probe"])
-  cleanup.check()
+  for
+    (name, steps) in [
+      (
+        "release removes descendants",
+        ["BEGIN", "SAVEPOINT a", "SAVEPOINT b", "RELEASE a", "ROLLBACK TO b"],
+      ),
+      (
+        "rollback removes descendants",
+        ["BEGIN", "SAVEPOINT a", "SAVEPOINT b", "ROLLBACK TO a", "RELEASE b"],
+      ),
+      (
+        "quoted upper-case name remains distinct",
+        ["BEGIN", "SAVEPOINT \"A\"", "RELEASE a"],
+      ),
+    ] {
+    rejected(name, steps, "3B001")
+  }
+  let _ = successful("remove disposable probe table", [
+    "DROP TABLE migrationlens_probe",
+  ])
   println("PostgreSQL 18 transaction and timeout execution probes passed")
 }

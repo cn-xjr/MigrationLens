@@ -180,3 +180,19 @@ test "local state does not leak between independent reviews" {
     "ML101",
   )
 }
+
+///|
+test "session SET cancels an existing local override" {
+  let report = policy(
+    "BEGIN; SET LOCAL lock_timeout=0; SET SESSION lock_timeout='2s'; CREATE INDEX idx ON t (id); COMMIT;",
+  )
+  assert_true(report.complete)
+  assert_eq(report.diagnostics.length(), 1)
+  assert_eq(report.diagnostics[0].code, "ML100")
+  assert_eq(
+    policy(
+      "BEGIN; SET lock_timeout='3s'; COMMIT; CREATE INDEX CONCURRENTLY idx ON t (id);",
+    ).exit_code(),
+    0,
+  )
+}

@@ -1,9 +1,11 @@
 # Validation and limits
 
-Validated toolchain: moon 0.1.20261012, moonc v0.10.15+943464bfa,
-moonrun 0.1.20261012, obtained from the official stable distribution.
+Initial local validation used moon 0.1.20261012, moonc v0.10.15+943464bfa,
+moonrun 0.1.20261012. CI now selects the stable `0.10.16+b1a0e846e` release
+for both binaries and core; generated interfaces are refreshed with that
+release. Distribution: <https://cli.moonbitlang.com/version.json>.
 
-Local evidence on 2026-10-19:
+Initial evidence on 2026-10-19 (October 12 local toolchain):
 
 | Check | Observed result |
 | --- | --- |
@@ -13,11 +15,16 @@ Local evidence on 2026-10-19:
 | File CLI end-to-end suite | Passed on wasm, wasm-gc, js, and Linux native |
 | Windows native execution | Unavailable: MSVC/Windows SDK not installed |
 | PostgreSQL 18 oracle script | Strict compilation passed; database execution not performed locally |
-| GitHub Actions | Not run locally; requires an authorized push and a remote run |
+| GitHub Actions | Initial portable matrix passed; the repaired PostgreSQL job at `2cb75ba` also passed on PostgreSQL 18 |
 
 Linux execution uses WSL Ubuntu 22.04. macOS behavior is covered by the supplied
-CI matrix but has not been executed locally. These results do not imply broad
+CI matrix and has passed remotely, but has not been executed locally. These results do not imply broad
 PostgreSQL syntax compatibility, measured lock predictions or ecosystem uniqueness.
+
+After the CI fixes, the October 16 stable toolchain passed strict checks for
+all four targets and 24 local tests on Wasm, Wasm-GC and JavaScript, plus the
+Wasm/JS CLI suites. The added regression also passed Linux native on the
+October 12 toolchain; CI exercises native with the selected October 16 release.
 
 The library has no FFI. The file adapter uses moonbitlang/x filesystem and
 process-exit APIs and core's strict UTF-8 decoder. Node's two-element executable
@@ -58,6 +65,15 @@ and rollback to savepoint. These correspond to transaction_test.mbt and
 timeout_test.mbt. It is an oracle for these semantics, not a complete PostgreSQL
 compatibility or concurrency/locking test.
 
+The probe names each stage before invoking psql and includes that name, exit
+code and stderr if it fails. It prints the numeric server version, never the
+connection environment or password. Additional server-backed cases verify
+session SET overriding SET LOCAL, session settings surviving COMMIT, same-name
+savepoint shadowing, RELEASE retaining settings/removing descendants, ROLLBACK
+TO removing descendants, quoted-name case sensitivity and caller transactions
+combined with simple-query dispatch. Missing savepoints require SQLSTATE 3B001;
+concurrent-index transaction conflicts require 25001, not merely any failure.
+
 ## Evidence policy
 
 Formatting, generated interfaces, strict compilation and runtime tests are
@@ -78,3 +94,12 @@ PostgreSQL assertion failure. The same failure was reproduced with an empty
 MOON_HOME registry. Every job using standalone scripts must run `moon update`
 after installing the toolchain. The PostgreSQL job also strictly checks the
 probe before executing it so dependency/compile failures are a separate step.
+
+The next run at `2cb75ba` passed the PostgreSQL 18 oracle but detected a second,
+independent issue: floating `latest` had advanced to the October 16 compiler.
+That compiler prints explicit `Int32` in generated interfaces where the earlier
+compiler printed `Int`, so the deliberate interface-drift check correctly
+failed. CI now selects a known compiler/core release together. Updating that
+selection requires rerunning `moon info`, reviewing the interface and testing
+all targets. Official download URLs are retained for a limited time, so the
+pin must be refreshed during toolchain maintenance rather than left indefinitely.
