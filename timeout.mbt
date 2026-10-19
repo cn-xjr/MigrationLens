@@ -1,6 +1,6 @@
 ///|
 priv enum Timeout {
-  Finite
+  Finite(Int32)
   Disabled
   Default
 }
@@ -81,9 +81,21 @@ fn TimeoutState::check(
   self : TimeoutState,
   span : Span,
   out : Array[Diagnostic],
+  maximum : Int32?,
 ) -> Unit {
   match self.scoped.unwrap_or(self.session) {
-    Finite => ()
+    Finite(milliseconds) =>
+      if maximum is Some(limit) && milliseconds > limit {
+        out.push(
+          finding(
+            "ML205",
+            Warning,
+            span,
+            "Effective lock_timeout of \{milliseconds}ms exceeds policy maximum of \{limit}ms",
+            "Set a positive timeout at or below the configured maximum in the effective scope.",
+          ),
+        )
+      }
     Disabled =>
       out.push(
         finding(
@@ -140,7 +152,7 @@ fn parse_timeout(raw : String) -> Timeout? {
   if number > 2147483647L / factor {
     return None
   }
-  Some(if number == 0L { Disabled } else { Finite })
+  Some(if number == 0L { Disabled } else { Finite((number * factor).to_int()) })
 }
 
 ///|

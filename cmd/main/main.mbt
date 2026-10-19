@@ -2,9 +2,9 @@
 /// File adapter; analysis lives in the portable library.
 fn main {
   let args = @env.args()[argument_prefix():].to_owned()
-  if args.length() < 2 || args.length() > 5 {
+  if args.length() < 2 || args.length() > 6 {
     println(
-      "usage: migration-lens <file.sql> <separate|simple|transaction|unknown> [--json] [--require-lock-timeout] [--initial-transaction]",
+      "usage: migration-lens <file.sql> <separate|simple|transaction|unknown> [--json] [--require-lock-timeout] [--initial-transaction] [--max-lock-timeout-ms=N]",
     )
     @sys.exit(2)
     return
@@ -23,7 +23,20 @@ fn main {
   let mut json_output = false
   let mut require_lock_timeout = false
   let mut initial_transaction = false
+  let mut max_lock_timeout_ms : Int32? = None
   for option in args[2:] {
+    if option.strip_prefix("--max-lock-timeout-ms=") is Some(value) {
+      let parsed = @string.parse_int(value) catch { _ => 0 }
+      if parsed <= 0 || max_lock_timeout_ms is Some(_) {
+        println(
+          "Invalid or repeated --max-lock-timeout-ms: use one integer from 1 through 2147483647",
+        )
+        @sys.exit(2)
+        return
+      }
+      max_lock_timeout_ms = Some(parsed)
+      continue
+    }
     match option {
       "--json" => json_output = true
       "--require-lock-timeout" => require_lock_timeout = true
@@ -47,6 +60,7 @@ fn main {
     execution=mode,
     initial_transaction~,
     require_lock_timeout~,
+    max_lock_timeout_ms?,
   )
   if json_output {
     println(report.to_json().stringify())

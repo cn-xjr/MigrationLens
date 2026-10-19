@@ -51,6 +51,26 @@ async fn main {
     assert_eq(again.stdout(), output.stdout(), msg="deterministic report")
   }
   @fs.mkdir("_build", allow_exist=true)
+  for (maximum, expected) in [("2000", 1), ("10000", 0)] {
+    let args = [
+      "run",
+      "--target",
+      target,
+      "cmd/main",
+      "--",
+      "fixtures/timeout-limit.sql",
+      "separate",
+      "--json",
+      "--max-lock-timeout-ms=\{maximum}",
+    ]
+    let output = @shell.Cmd(moon, args).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), expected)
+    let data = @json.parse(output.stdout())
+    assert_eq(@json.parse(data.stringify()), data)
+    assert_eq(output.stdout().contains("ML205"), expected == 1)
+    let again = @shell.Cmd(moon, args).output(timeout_ms=60000)
+    assert_eq(again.stdout(), output.stdout())
+  }
   let initial = @shell.Cmd(moon, [
     "run", "--target", target, "cmd/main", "--", "fixtures/close-transaction.sql",
     "simple", "--initial-transaction", "--json",
@@ -65,6 +85,16 @@ async fn main {
       ["_build/missing-migrationlens-file.sql", "separate"],
       ["fixtures/batch-indexes.sql", "bogus"],
       ["fixtures/batch-indexes.sql", "separate", "--bogus"],
+      ["fixtures/timeout-limit.sql", "separate", "--max-lock-timeout-ms=0"],
+      ["fixtures/timeout-limit.sql", "separate", "--max-lock-timeout-ms=-1"],
+      [
+        "fixtures/timeout-limit.sql", "separate", "--max-lock-timeout-ms=2147483648",
+      ],
+      ["fixtures/timeout-limit.sql", "separate", "--max-lock-timeout-ms=2s"],
+      ["fixtures/timeout-limit.sql", "separate", "--max-lock-timeout-ms="],
+      [
+        "fixtures/timeout-limit.sql", "separate", "--max-lock-timeout-ms=1", "--max-lock-timeout-ms=2",
+      ],
     ] {
     let args = ["run", "--target", target, "cmd/main", "--"]
     for arg in invalid_args {

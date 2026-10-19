@@ -70,3 +70,16 @@ PostgreSQL 18 documentation defines the rules; no documentation text is used
 as implementation or fixture. See protocol multi-statement transactions,
 CREATE/DROP INDEX, SET, SAVEPOINT, ROLLBACK TO and RELEASE SAVEPOINT:
 <https://www.postgresql.org/docs/18/>
+
+Transaction chaining was also checked against PostgreSQL's REL_18_STABLE
+`src/backend/access/transam/xact.c` (PostgreSQL License) to distinguish explicit
+from implicit blocks. No source code or comments were copied:
+<https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/xact.c>.
+Command references: <https://www.postgresql.org/docs/18/sql-commit.html>,
+<https://www.postgresql.org/docs/18/sql-rollback.html>,
+<https://www.postgresql.org/docs/18/sql-end.html>,
+<https://www.postgresql.org/docs/18/sql-abort.html>, and
+<https://www.postgresql.org/docs/18/sql-dropindex.html>.
+The added chain, drop and timeout-limit fixtures/tests are authored for this
+repository under its Apache-2.0 license. Maximum lock waiting is a caller policy;
+no external implementation, data or rule text was reused for that policy.

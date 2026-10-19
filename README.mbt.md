@@ -90,6 +90,31 @@ concurrent index. The second exits 1: rollback to the savepoint cancels the
 finite local timeout (ML201), and an ordinary index also produces ML100.
 Library callers opt in with `require_lock_timeout=true` on `review_sql`.
 
+Set `max_lock_timeout_ms=2000` to also require that the effective timeout is
+at most 2,000 milliseconds. The maximum implies the finite-timeout check;
+it need not be combined with `require_lock_timeout`. Equality passes, larger
+values report ML205 with the effective milliseconds, disabled/unknown values
+still report ML201/ML202. Omitted limits preserve previous behavior. Limits
+outside 1..2147483647 report ML011 and incomplete analysis (no SQL statements
+are analyzed). This is a caller policy, not a PostgreSQL server restriction.
+
+```mbt check
+///|
+test "bound lock waiting in a migration policy" {
+  let report = @migration_lens.review_sql(
+    "SET lock_timeout='10s'; CREATE INDEX CONCURRENTLY a ON t (id);",
+    execution=SeparateStatements,
+    max_lock_timeout_ms=2000,
+  )
+  assert_eq(report.diagnostics[0].code, "ML205")
+}
+```
+
+CLI: `moon run cmd/main -- fixtures/timeout-limit.sql separate --max-lock-timeout-ms=2000 --json`
+exits 1; use 10000 for an exit-0 comparison. Invalid or repeated maximum
+options exit 2. Numeric values are tracked through the same savepoint,
+commit/rollback and chain rules as the finite-timeout policy.
+
 Initial/default timeout values are unknown, not assumed zero. Positive finite
 timeouts established by this input satisfy the policy; zero reports ML201,
 unknown reports ML202. SET LOCAL outside a transaction reports ML200 even when

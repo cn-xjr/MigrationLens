@@ -102,12 +102,31 @@ fn classify(fragment : Fragment) -> Command {
 ///|
 /// Analyze PostgreSQL 18 index statements and transaction control. The caller
 /// must describe dispatch; comments never override the explicit execution mode.
+/// A positive max_lock_timeout_ms also enables timeout checking. Invalid limits
+/// yield ML011 and an incomplete report without analyzing statements.
 pub fn review_sql(
   source : String,
   execution~ : Execution,
   initial_transaction~ : Bool = false,
   require_lock_timeout~ : Bool = false,
+  max_lock_timeout_ms? : Int32,
 ) -> Report {
+  if max_lock_timeout_ms is Some(limit) && limit <= 0 {
+    return {
+      source,
+      statements: 0,
+      complete: false,
+      diagnostics: [
+        finding(
+          "ML011",
+          Incomplete,
+          { start: 0, end: source.length(), },
+          "max_lock_timeout_ms must be a positive 32-bit integer",
+          "Use a limit from 1 through 2147483647 milliseconds, or omit the maximum.",
+        ),
+      ],
+    }
+  }
   let scanned = scan(source)
   let diagnostics = scanned.errors.copy()
   let mut complete = diagnostics.is_empty()
@@ -227,8 +246,8 @@ pub fn review_sql(
         tx = Uncertain
       }
       Index(concurrent) => {
-        if require_lock_timeout {
-          timeouts.check(fragment.span, diagnostics)
+        if require_lock_timeout || max_lock_timeout_ms is Some(_) {
+          timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)
         }
         if concurrent {
           if tx == Uncertain {

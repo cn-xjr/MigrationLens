@@ -22,7 +22,9 @@ It does not generate migrations, compare schemas, execute DDL, or certify safety
 
 The root package owns public review, diagnostic, source-range and execution
 types. A SQL scanner preserves original UTF-16 offsets and statement text;
-the pinned sqlparser validates supported statements. Unsupported syntax is an
+the pinned sqlparser validates CREATE INDEX. Closed grammars validate DROP INDEX
+and transaction/timeout controls without dropping unrepresented clauses.
+Unsupported syntax is an
 explicit incomplete finding. Review is deterministic and has no database I/O.
 Reporting uses the original source; there is no lossy SQL reserialization.
 
@@ -44,6 +46,12 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   concurrent-index incompatibility and transaction-control diagnostics.
 * Timeout scopes: transaction-local/session settings, savepoint rollback,
   reset/unknown behavior, and PostgreSQL execution probes.
+* Transaction chaining: END/ABORT aliases and new explicit transaction baselines,
+  with diagnostics for chaining outside an explicit transaction.
+* Index cleanup: qualified/quoted name lists and CASCADE/RESTRICT; forbidden
+  concurrent combinations receive actionable errors.
+* Bounded lock waiting: optional caller maximum on effective milliseconds,
+  library and CLI workflows, inclusive boundaries and invalid-policy diagnostics.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only

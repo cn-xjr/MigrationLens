@@ -76,6 +76,24 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+The bounded-timeout extension retains integer milliseconds through all scope
+snapshots and adds inclusive maximum, overflow, disabled/default, rollback,
+chain, invalid-policy and review-isolation regressions. The optional library
+argument is `max_lock_timeout_ms`; CLI invalid/repeated values are rejected
+before reading the file. `fixtures/timeout-limit.sql` demonstrates the same
+input failing a 2000ms limit and passing a 10000ms limit.
+
+Local checks for the three follow-up capabilities (2026-10-19): 34 unit and
+documentation tests passed on Wasm, Wasm-GC and JavaScript with the October 16
+toolchain, and on Linux native with the October 12 toolchain. Strict compilation
+passed for all four targets with October 16; formatting and generated interfaces
+were checked with that compiler. The expanded CLI suites passed on Wasm,
+Wasm-GC and JavaScript (October 16), and Linux native (October 12).
+Windows native execution remains unavailable. New
+PostgreSQL oracle cases were strictly compiled but have not run against a local
+database or in remote CI. These results do not supersede the toolchain/OS limits
+recorded above.
+
 DROP INDEX regressions cover qualified/quoted names (including embedded comma,
 semicolon and Unicode), ordinary name lists, concurrent multi-name/CASCADE
 errors, malformed identifiers and unsupported trailing tokens. The authored
