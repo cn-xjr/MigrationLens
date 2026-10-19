@@ -37,6 +37,17 @@ temporary relations require catalog knowledge and remain outside scope.
 Example: `moon run cmd/main -- fixtures/drop-indexes.sql separate --json`
 reports ML107 and exits 1 without needing a database.
 
+Index maintenance also supports `REINDEX INDEX [CONCURRENTLY] name` with one
+optionally schema-qualified/quoted name. It uses the same dispatch and timeout
+checks as CREATE/DROP INDEX. Ordinary rebuilds report ML100; within transactions
+they also report ML108 because partitioned indexes require separate handling.
+Relation kind is unknown: this warning requests catalog review, not proof of
+server acceptance. REINDEX TABLE/SCHEMA/DATABASE/SYSTEM and parenthesized options
+are explicitly incomplete. See [PostgreSQL 18 REINDEX](https://www.postgresql.org/docs/18/sql-reindex.html).
+
+`moon run cmd/main -- fixtures/reindex.sql separate --require-lock-timeout`
+exits 0; sending that same file with `simple` reports ML101 and exits 1.
+
 ```mbt check
 ///|
 test "review an index migration" {

@@ -83,3 +83,7 @@ Command references: <https://www.postgresql.org/docs/18/sql-commit.html>,
 The added chain, drop and timeout-limit fixtures/tests are authored for this
 repository under its Apache-2.0 license. Maximum lock waiting is a caller policy;
 no external implementation, data or rule text was reused for that policy.
+
+REINDEX semantics follow <https://www.postgresql.org/docs/18/sql-reindex.html>.
+Its implementation, regression cases and `fixtures/reindex.sql` are authored
+under the root Apache-2.0 license; no documentation examples or code were copied.

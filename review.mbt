@@ -1,6 +1,7 @@
 ///|
 priv enum Command {
   Index(Bool)
+  Reindex(Bool)
   InvalidIndex(String)
   Begin
   Finish(rollback~ : Bool, chain~ : Bool)
@@ -72,6 +73,18 @@ fn classify(fragment : Fragment) -> Command {
       )
     }
     ["DROP", "INDEX", ..] => classify_drop(fragment.words[:])
+    ["REINDEX", "INDEX", .. rest] => {
+      let (concurrent, name) = match rest {
+        ["CONCURRENTLY", .. name] => (true, name)
+        _ => (false, rest)
+      }
+      match name {
+        [index] if index_identifier(index) => Reindex(concurrent)
+        [schema, ".", index] if index_identifier(schema) &&
+          index_identifier(index) => Reindex(concurrent)
+        _ => Unsupported
+      }
+    }
     ["CREATE", ..] => {
       let mut depth = 0
       for word in fragment.words {
@@ -245,7 +258,18 @@ pub fn review_sql(
         timeouts.taint()
         tx = Uncertain
       }
-      Index(concurrent) => {
+      Index(concurrent) | Reindex(concurrent) => {
+        if command is Reindex(false) && tx != Idle {
+          diagnostics.push(
+            finding(
+              "ML108",
+              Warning,
+              fragment.span,
+              "Non-concurrent REINDEX in a transaction requires a non-partitioned index",
+              "Check the relation kind in the catalog; partitioned indexes cannot be reindexed in a transaction block.",
+            ),
+          )
+        }
         if require_lock_timeout || max_lock_timeout_ms is Some(_) {
           timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)
         }

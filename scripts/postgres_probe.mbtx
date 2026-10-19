@@ -214,6 +214,22 @@ async fn main {
     ["DROP INDEX CONCURRENTLY ml_probe_a, ml_probe_b"],
     "0A000",
   )
+  let _ = successful("qualified concurrent reindex", [
+    "REINDEX INDEX CONCURRENTLY public.ml_probe_a",
+  ])
+  let _ = successful("ordinary reindex in explicit transaction", [
+    "BEGIN", "REINDEX INDEX ml_probe_a", "COMMIT",
+  ])
+  rejected(
+    "concurrent reindex explicit transaction",
+    ["BEGIN", "REINDEX INDEX CONCURRENTLY ml_probe_a"],
+    "25001",
+  )
+  rejected(
+    "concurrent reindex implicit transaction",
+    ["SET lock_timeout=100; REINDEX INDEX CONCURRENTLY ml_probe_a"],
+    "25001",
+  )
   rejected(
     "concurrent drop cascade",
     ["DROP INDEX CONCURRENTLY ml_probe_a CASCADE"],

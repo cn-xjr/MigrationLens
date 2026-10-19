@@ -76,6 +76,12 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+REINDEX INDEX tests cover ordinary/concurrent operations, qualified and escaped
+names, implicit/explicit/caller transactions, timeout maxima, preserved source,
+determinism and unsupported options/scopes. The PostgreSQL probe adds actual
+ordinary/concurrent rebuilds and expected SQLSTATE 25001 conflicts. These new
+database cases are strictly compiled only; execution remains pending.
+
 The bounded-timeout extension retains integer milliseconds through all scope
 snapshots and adds inclusive maximum, overflow, disabled/default, rollback,
 chain, invalid-policy and review-isolation regressions. The optional library
