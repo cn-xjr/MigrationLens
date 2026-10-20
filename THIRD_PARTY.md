@@ -212,3 +212,9 @@ ALTER TABLE and CREATE TABLE references (PostgreSQL License):
 <https://www.postgresql.org/docs/18/sql-createtable.html>.
 The classifier, warnings, tests, probes and `fixtures/attach-unique.sql` are
 authored under Apache-2.0; no upstream implementation or SQL example is copied.
+
+Foreign-key rollout semantics use the same PostgreSQL 18 ALTER TABLE and CREATE
+TABLE references above (PostgreSQL License), including NOT VALID, MATCH and
+referential-action behavior. The closed grammar, diagnostics, regression tests,
+orphan/repair/cascade probes and `fixtures/add-foreign-key.sql` are authored under
+Apache-2.0. No upstream implementation or SQL example is copied.

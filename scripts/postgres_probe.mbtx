@@ -499,6 +499,39 @@ async fn main {
   let _ = successful("remove attachment probe table", [
     "DROP TABLE ml_probe_attach",
   ])
+  let _ = successful("prepare historical orphan for NOT VALID foreign key", [
+    "CREATE TABLE ml_probe_fk_child(account_id integer)", "INSERT INTO ml_probe_fk_child VALUES (1), (999)",
+  ])
+  let installed_fk = successful(
+    "NOT VALID FK locks both tables and leaves history unvalidated",
+    [
+      "BEGIN", "ALTER TABLE ml_probe_fk_child ADD CONSTRAINT ml_probe_new_fk FOREIGN KEY(account_id) REFERENCES ml_probe_parent(id) ON DELETE CASCADE NOT VALID",
+      "SELECT count(*) FROM pg_locks WHERE pid=pg_backend_pid() AND relation IN ('ml_probe_fk_child'::regclass,'ml_probe_parent'::regclass) AND granted AND mode='ShareRowExclusiveLock'",
+      "SELECT convalidated FROM pg_constraint WHERE conrelid='ml_probe_fk_child'::regclass AND conname='ml_probe_new_fk'",
+      "COMMIT",
+    ],
+  )
+  assert_eq(installed_fk.stdout().trim().to_owned(), "2\nf")
+  rejected(
+    "NOT VALID still rejects new orphan writes",
+    ["INSERT INTO ml_probe_fk_child VALUES (999)"],
+    "23503",
+  )
+  rejected(
+    "validation finds historical orphan",
+    ["ALTER TABLE ml_probe_fk_child VALIDATE CONSTRAINT ml_probe_new_fk"],
+    "23503",
+  )
+  let repaired_fk = successful(
+    "repair history then validate and apply cascade",
+    [
+      "DELETE FROM ml_probe_fk_child WHERE account_id=999", "ALTER TABLE ml_probe_fk_child VALIDATE CONSTRAINT ml_probe_new_fk",
+      "INSERT INTO ml_probe_parent VALUES (3)", "INSERT INTO ml_probe_fk_child VALUES (3)",
+      "DELETE FROM ml_probe_parent WHERE id=3", "SELECT count(*) FROM ml_probe_fk_child WHERE account_id=3",
+      "DROP TABLE ml_probe_fk_child",
+    ],
+  )
+  assert_eq(repaired_fk.stdout().trim().to_owned(), "0")
   let _ = successful("remove disposable probe tables", [
     "DROP TABLE migrationlens_probe", "DROP TABLE ml_probe_parent",
   ])

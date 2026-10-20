@@ -96,6 +96,9 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
 * Online uniqueness completion: concurrent unique-index creation followed by
   constraint attachment, table locks, index ownership and primary-key scans.
 
+* Foreign-key rollout: installation locks on both relations, historical versus
+  subsequent-row enforcement, referential-action effects and later validation.
+
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only
 after preserving the existing rule contract. Full PostgreSQL parsing and

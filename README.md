@@ -742,7 +742,8 @@ supports comma-separated validation actions on one table. ONLY with `*` is
 rejected. Mixed ALTER TABLE actions remain incomplete (ML003): reducing a
 mixed command to its validation action could hide a stronger lock.
 This completes the validation phase for constraints already installed as NOT
-VALID by an earlier, separately reviewed migration; ADD CONSTRAINT is not covered.
+VALID by an earlier migration. Installation is covered only for the specific
+index-backed and FOREIGN KEY forms described below; other ADD forms are incomplete.
 
 ML180 explains possible scans and SHARE UPDATE EXCLUSIVE locks. ML181 asks for
 catalog/data checks: the constraint must exist and be enforced; supported server
@@ -805,6 +806,48 @@ test "review online uniqueness through its final locking phase" {
 reviews both phases offline and exits 1 for ML190/ML191. `simple` also reports
 ML101 for the concurrent build. Semantics follow
 [PostgreSQL 18 ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html).
+
+## Install and validate foreign keys in separate phases
+
+`ALTER TABLE ... ADD [CONSTRAINT name] FOREIGN KEY (columns)
+REFERENCES [schema.]table [(columns)]` covers one foreign-key action, with optional
+MATCH SIMPLE/FULL, ON DELETE/UPDATE actions, the explicit timing subset described
+above, and trailing NOT VALID. Explicit column lists must be nonempty and equal
+in length. ON DELETE and ON UPDATE may appear in either order, once each;
+actions cover NO ACTION, RESTRICT, CASCADE and SET NULL/DEFAULT without column
+subsets. MATCH PARTIAL, PERIOD, ENFORCED, subsets, mixed actions, reordered
+timing and unconsumed clauses remain incomplete instead of being discarded.
+
+ML210 warns that installation takes SHARE ROW EXCLUSIVE locks on both tables.
+NOT VALID adds ML211: historical validation is deferred, subsequent writes are
+still constrained. Without NOT VALID, ML212 warns about a possible historical
+scan while writes are blocked. ML214 requires catalog/data/index checks;
+ML213 flags referential actions that can modify or delete child rows. Such
+actions execute with the data-changing command even for deferrable constraints.
+No historical-data repair, constraint execution or catalog proof is performed.
+
+```mbt check
+///|
+test "review staged foreign-key enforcement" {
+  let report = @migration_lens.review_sql(
+    "SET lock_timeout=100; ALTER TABLE orders ADD CONSTRAINT orders_account_fk FOREIGN KEY(account_id) REFERENCES accounts(id) NOT VALID; ALTER TABLE orders VALIDATE CONSTRAINT orders_account_fk;",
+    execution=SeparateStatements,
+    max_lock_timeout_ms=100,
+  )
+  assert_true(report.complete)
+  assert_eq(report.diagnostics.map(d => d.code), [
+    "ML210", "ML211", "ML214", "ML180", "ML181",
+  ])
+}
+```
+
+`moon run cmd/main -- fixtures/add-foreign-key.sql separate --require-lock-timeout --json`
+reviews installation, later validation and a child index offline. It exits 1 for
+the five warnings above; `simple` also reports ML101 for the concurrent index.
+The fixture assumes data has been checked/repaired before its validation phase;
+the linter does not establish this. Semantics follow
+[PostgreSQL 18 ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html)
+and [CREATE TABLE](https://www.postgresql.org/docs/18/sql-createtable.html).
 
 ## Development
 

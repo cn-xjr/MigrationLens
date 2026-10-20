@@ -76,6 +76,19 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Foreign-key installation: all 148 unit/documentation tests passed on Wasm,
+Wasm-GC, JavaScript and actual Linux native using October 16 stable. The full
+Wasm CLI suite and the documented install/validate/index fixture on all four
+CLI targets passed. Strict all-target and script checks, formatting and
+generated interfaces passed; public API unchanged. Tests exercise historical
+validation, all five action kinds on DELETE/UPDATE, MATCH, explicit timing,
+1..24 quoted column lists, rejected mixed/unrepresented clauses, timeout state,
+downstream uncertainty, spans, deterministic reports and JSON archive round trips.
+The new PostgreSQL orphan/repair/cascade and dual-lock probes compile locally;
+database execution awaits CI. Index attachment commit `87a87ed` passed all
+four jobs, including actual PostgreSQL 18 probes, in
+[run 39425194381](https://github.com/cn-xjr/MigrationLens/actions/runs/39425194381).
+
 Index-backed constraint attachment: 141 unit/documentation tests passed on
 Wasm, Wasm-GC, JavaScript and actual Linux native with October 16 stable.
 The complete Wasm CLI suite and the documented attachment fixture on all four

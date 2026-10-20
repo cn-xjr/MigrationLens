@@ -1,12 +1,6 @@
 ///|
 fn classify_index_constraint(words : ArrayView[String]) -> Command {
-  let mut i = 1
-  if words.get(i) == Some("CONSTRAINT") {
-    if i + 1 >= words.length() || !index_identifier(words[i + 1]) {
-      return Unsupported
-    }
-    i += 2
-  }
+  let mut i = 0
   let primary_key = match words.get(i) {
     Some("UNIQUE") => {
       i += 1

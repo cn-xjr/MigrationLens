@@ -38,7 +38,17 @@ fn classify_alter_table(words : ArrayView[String]) -> Command {
   }
   match actions {
     ["VALIDATE", ..] => classify_validate_constraint(actions)
-    ["ADD", ..] => classify_index_constraint(actions)
+    ["ADD", .. tail] => {
+      let body = match tail {
+        ["CONSTRAINT", name, .. body] if index_identifier(name) => body
+        ["CONSTRAINT", ..] => return Unsupported
+        _ => tail
+      }
+      match body {
+        ["FOREIGN", "KEY", ..] => classify_foreign_key(body)
+        _ => classify_index_constraint(body)
+      }
+    }
     _ => Unsupported
   }
 }
