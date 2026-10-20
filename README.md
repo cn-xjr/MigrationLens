@@ -42,11 +42,19 @@ optionally schema-qualified/quoted name. It uses the same dispatch and timeout
 checks as CREATE/DROP INDEX. Ordinary rebuilds report ML100; within transactions
 they also report ML108 because partitioned indexes require separate handling.
 Relation kind is unknown: this warning requests catalog review, not proof of
-server acceptance. REINDEX TABLE/SCHEMA/DATABASE/SYSTEM and parenthesized options
-are explicitly incomplete. See [PostgreSQL 18 REINDEX](https://www.postgresql.org/docs/18/sql-reindex.html).
+server acceptance. REINDEX TABLE/SCHEMA/DATABASE/SYSTEM remain incomplete.
+Parenthesized options support CONCURRENTLY and VERBOSE (implicit true, or
+TRUE/ON/1/FALSE/OFF/0), plus one TABLESPACE identifier. A named tablespace adds
+ML111 because storage placement, free space and privileges need manual review.
+Duplicate options, quoted booleans, unknown clauses and a CONCURRENTLY option
+combined with the trailing CONCURRENTLY keyword are incomplete; precedence is
+not guessed. See [PostgreSQL 18 REINDEX](https://www.postgresql.org/docs/18/sql-reindex.html).
 
 `moon run cmd/main -- fixtures/reindex.sql separate --require-lock-timeout`
 exits 0; sending that same file with `simple` reports ML101 and exits 1.
+`moon run cmd/main -- fixtures/reindex-options.sql separate --require-lock-timeout`
+reviews the option-bearing rebuild and exits 1 for ML111. Its tablespace is an
+authored example name; the command only reviews SQL, not server existence.
 
 Index replacement workflows support `ALTER INDEX [IF EXISTS] name RENAME TO new_name`.
 The old name may be schema-qualified; the new name must be one identifier.

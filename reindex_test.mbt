@@ -64,7 +64,7 @@ test "reindex enforces timeout scopes and retains incomplete context" {
 test "reindex does not discard scopes options or trailing SQL" {
   for
     sql in [
-      "REINDEX TABLE t;", "REINDEX DATABASE;", "REINDEX (VERBOSE) INDEX a;", "REINDEX INDEX a, b;",
+      "REINDEX TABLE t;", "REINDEX DATABASE;", "REINDEX (UNKNOWN) INDEX a;", "REINDEX INDEX a, b;",
       "REINDEX INDEX 'a';", "REINDEX INDEX a.b.c;", "REINDEX INDEX CONCURRENTLY;",
       "REINDEX INDEX a CASCADE;", "REINDEX INDEX \"\";",
     ] {

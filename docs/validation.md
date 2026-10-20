@@ -76,6 +76,13 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+REINDEX option tests cover enabled/disabled boolean spellings, option ordering,
+tablespace review, timeout policy, retained source, duplicate/unknown clauses
+and malformed lists. `fixtures/reindex-options.sql` exercises ML111 in the CLI.
+Additional PostgreSQL probes check parenthesized concurrent rebuilding, explicit
+FALSE inside a transaction and SQLSTATE 25001 for enabled concurrent rebuilding;
+they are compiled only until database execution is explicitly reported.
+
 The multi-file extension tests input ordering, duplicate path labels, isolation
 of transaction/timeout state, continued review after incomplete SQL, maximum
 exit-code aggregation, deterministic JSON, separate SARIF runs and rejection of

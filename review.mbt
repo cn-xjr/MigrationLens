@@ -1,7 +1,7 @@
 ///|
 priv enum Command {
   Index(Bool)
-  Reindex(Bool)
+  Reindex(Bool, Bool)
   RenameIndex
   InvalidIndex(String)
   Begin
@@ -88,18 +88,7 @@ fn classify(fragment : Fragment) -> Command {
         _ => Unsupported
       }
     }
-    ["REINDEX", "INDEX", .. rest] => {
-      let (concurrent, name) = match rest {
-        ["CONCURRENTLY", .. name] => (true, name)
-        _ => (false, rest)
-      }
-      match name {
-        [index] if index_identifier(index) => Reindex(concurrent)
-        [schema, ".", index] if index_identifier(schema) &&
-          index_identifier(index) => Reindex(concurrent)
-        _ => Unsupported
-      }
-    }
+    ["REINDEX", ..] => classify_reindex(fragment.words[:])
     ["CREATE", ..] => {
       let mut depth = 0
       for word in fragment.words {
@@ -287,8 +276,19 @@ pub fn review_sql(
           ),
         )
       }
-      Index(concurrent) | Reindex(concurrent) => {
-        if command is Reindex(false) && tx != Idle {
+      Index(concurrent) | Reindex(concurrent, _) => {
+        if command is Reindex(_, true) {
+          diagnostics.push(
+            finding(
+              "ML111",
+              Warning,
+              fragment.span,
+              "REINDEX names a target tablespace and may move index storage",
+              "Check tablespace existence, privileges, free space and partition behavior; these catalog and capacity facts are not inferred.",
+            ),
+          )
+        }
+        if command is Reindex(false, _) && tx != Idle {
           diagnostics.push(
             finding(
               "ML108",

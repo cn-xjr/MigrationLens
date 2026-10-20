@@ -108,3 +108,9 @@ The batch manifest, aggregation code and tests are authored under Apache-2.0.
 migration/River fixtures and the authored replacement example without copying
 or modifying them. Batch parsing uses MoonBit core's strict JSON duplicate-key
 option; no additional package or external implementation is reused.
+
+Parenthesized REINDEX option syntax and booleans follow the same PostgreSQL 18
+REINDEX reference cited above. The option parser, tests and
+`fixtures/reindex-options.sql` are authored under Apache-2.0; no upstream source
+or documentation examples were copied. Tablespace warnings do not infer catalog
+or capacity facts.

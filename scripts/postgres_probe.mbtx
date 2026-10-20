@@ -217,6 +217,17 @@ async fn main {
   let _ = successful("qualified concurrent reindex", [
     "REINDEX INDEX CONCURRENTLY public.ml_probe_a",
   ])
+  let _ = successful("REINDEX parenthesized concurrent and verbose", [
+    "REINDEX (CONCURRENTLY ON, VERBOSE OFF) INDEX public.ml_probe_a",
+  ])
+  let _ = successful("REINDEX explicitly non-concurrent in transaction", [
+    "BEGIN", "REINDEX (CONCURRENTLY FALSE) INDEX ml_probe_a", "COMMIT",
+  ])
+  rejected(
+    "REINDEX parenthesized concurrent transaction conflict",
+    ["BEGIN", "REINDEX (CONCURRENTLY 1) INDEX ml_probe_a"],
+    "25001",
+  )
   let _ = successful("ordinary reindex in explicit transaction", [
     "BEGIN", "REINDEX INDEX ml_probe_a", "COMMIT",
   ])
