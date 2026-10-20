@@ -369,6 +369,7 @@ async fn main {
       guard incomplete is { "report": { "complete": false, .. }, .. } else {
         fail("incomplete file lost")
       }
+      @fs.write_file("_build/saved-batch-2.json", output.stdout())
     } else {
       guard data is { "version": "2.1.0", "runs": [_, _, _], .. } else {
         fail("expected three independent SARIF runs")
@@ -445,6 +446,7 @@ async fn main {
         } else {
         fail("batch initial timeout fact lost")
       }
+      @fs.write_file("_build/saved-batch-0.json", output.stdout())
     } else {
       guard data
         is {
@@ -464,6 +466,54 @@ async fn main {
       @fs.write_file("_build/sarif-session.json", output.stdout())
     }
   }
+  @fs.write_file(
+    "_build/warning-manifest.json", "{\"format_version\":1,\"migrations\":[{\"path\":\"fixtures/replace-index.sql\",\"execution\":\"separate\"}]}",
+  )
+  let warning_batch = @shell.Cmd(moon, [
+    "run", "--target", target, "cmd/batch", "--", "_build/warning-manifest.json",
+    "--json",
+  ]).output(timeout_ms=60000)
+  assert_eq(warning_batch.exit_code(), 1)
+  @fs.write_file("_build/saved-batch-1.json", warning_batch.stdout())
+  for expected in 0..<=2 {
+    for format in ["json", "text", "sarif"] {
+      let saved = "_build/saved-batch-\{expected}.json"
+      let output = @shell.Cmd(moon, [
+        "run", "--target", target, "cmd/report_batch", "--", saved, format,
+      ]).output(timeout_ms=60000)
+      assert_eq(output.exit_code(), expected)
+      if format == "json" {
+        assert_eq(output.stdout(), @fs.read_file(saved).text())
+      }
+      if format == "text" {
+        assert_true(output.stdout().contains("MigrationLens batch:"))
+      }
+      if format == "sarif" && expected == 2 {
+        @fs.write_file("_build/sarif-restored-batch.json", output.stdout())
+      }
+    }
+  }
+  for
+    invalid_args in [
+      [],
+      ["_build/missing-saved-batch.json", "json"],
+      ["_build/invalid-utf8.sql", "text"],
+      ["_build/saved-report-0.json", "json"],
+      ["_build/saved-batch-0.json", "wrong"],
+    ] {
+    let command = ["run", "--target", target, "cmd/report_batch", "--"]
+    for arg in invalid_args {
+      command.push(arg)
+    }
+    let output = @shell.Cmd(moon, command).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), 2)
+    assert_true(output.stdout().contains("Cannot restore batch report:"))
+  }
+  let restored_recovery = @shell.Cmd(moon, [
+    "run", "--target", target, "cmd/report_batch", "--", "_build/saved-batch-0.json",
+    "json",
+  ]).output(timeout_ms=60000)
+  assert_eq(restored_recovery.exit_code(), 0)
   println(
     "Single-file/batch CLI, JSON/SARIF, determinism and malformed input checks passed on \{target}",
   )

@@ -76,6 +76,19 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Batch archive regressions cover exact JSON/text round trips, duplicate paths,
+all context fields, shared timeout facts, signed integer boundaries, incomplete
+SQL and canonical invalid-policy reports. Unknown/duplicate fields, altered
+aggregate exit codes, inconsistent repeated context, malformed spans/metadata,
+and lossy numeric spellings are rejected. CLI checks restore 0/1/2 archives in
+all formats, reject bad input and recover with a valid archive. The restored
+multi-run example is `_build/sarif-restored-batch.json` for schema validation.
+The archive extension passed 90 unit/documentation tests on each of Wasm,
+Wasm-GC, JavaScript and Linux native with the October 16 toolchain. Strict
+all-target compilation, formatting and interface checks passed. Full CLI suites
+passed on all four targets, including actual Linux native execution; the added
+batch SARIF sample passed the external official schema.
+
 Single-index tablespace tests cover qualified/quoted names and destinations,
 UTF-16 source spans, deterministic JSON and typed restoration, SARIF export,
 transaction/savepoint timeout state, inclusive maxima, disabled/unknown values,

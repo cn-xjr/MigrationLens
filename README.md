@@ -399,6 +399,37 @@ path. Read/UTF-8/validation/export failures exit 2 with an actionable message.
 No database, original SQL file or new analysis is needed to render a saved
 report. Source embedded in the report is retained; sharing it exposes that SQL.
 
+## Restore a batch review archive
+
+`BatchReport::parse_json(text)` restores the version-1 batch report, including
+ordered duplicate paths, source, execution/policy snapshots, diagnostics and
+the optional shared initial timeout. It validates aggregate exit codes, repeated
+path/initial facts, numeric bounds, duplicate decoded keys and unknown fields.
+An unrepresentable field rejects the whole input. It never reads or rescans SQL.
+
+The saved-report contract differs from the input manifest: execution uses enum
+names such as `SeparateStatements`, and the existing optional maximum is encoded
+as `null` or `[integer]`. Signed 32-bit policy values and their invalid-policy
+reports are preserved, including the canonical configuration-error message.
+Integer tokens reject fractions/exponents/negative zero before rounding. Empty
+batches are supported. Invalid file labels remain intact; SARIF export rejects
+invalid paths without emitting a partial log. Restoration validates structure,
+not the original report's conclusions. The single-report CLI stays unchanged.
+
+```text
+moon run scripts/e2e.mbtx wasm
+moon run cmd/report_batch -- _build/saved-batch-2.json text
+moon run cmd/report_batch -- _build/saved-batch-2.json sarif
+moon run cmd/report_batch -- _build/saved-batch-0.json json
+```
+
+The first two render commands exit 2 while retaining every incomplete/covered
+file; the last exits 0 and reproduces canonical JSON. The script archives real
+upstream fixture reviews and an authored warning workflow. Formats are `text`,
+`json`, `sarif`; stored path labels supply SARIF locations. Read/UTF-8/schema or
+export errors produce an actionable message and exit 2. No original files,
+database or private infrastructure are needed to inspect an archive.
+
 ## Compare a trusted baseline with the current report
 
 `compare_reports(baseline, current)` returns `Result[ReportDelta, String]`.

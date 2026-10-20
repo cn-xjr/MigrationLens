@@ -20,6 +20,7 @@ pub struct BatchReport {
   initial_lock_timeout_ms : Int32?
 }
 pub fn BatchReport::exit_code(Self) -> Int32
+pub fn BatchReport::parse_json(String) -> Result[Self, String]
 pub fn BatchReport::to_json(Self) -> Json
 pub fn BatchReport::to_sarif(Self) -> Result[Json, String]
 pub fn BatchReport::to_text(Self) -> String

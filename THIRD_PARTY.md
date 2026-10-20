@@ -151,3 +151,8 @@ against the PostgreSQL 18 ALTER INDEX reference already cited above:
 The classifier, diagnostics, tests, pg_default lock probe and
 `fixtures/move-index.sql` are authored under Apache-2.0. No documentation
 example, upstream fixture or implementation was copied for this capability.
+
+The batch archive decoder, CLI and regression cases are authored under Apache-2.0.
+They implement this project's existing version-1 JSON contract with MoonBit core
+JSON; no external serialization implementation or schema was copied. The e2e
+archive inputs reuse the already-attributed fixtures and authored workflows.

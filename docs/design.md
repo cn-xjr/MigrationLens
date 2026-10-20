@@ -73,6 +73,8 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   retained source reports, strict completeness and an explicit new-findings gate.
 * Index storage placement: single-index SET TABLESPACE lock/capacity diagnostics,
   scoped timeout review and unchanged downstream dispatch semantics.
+* Batch review archives: strict typed restoration, context consistency, preserved
+  invalid-policy reports and offline text/JSON/multi-run SARIF rendering.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only
