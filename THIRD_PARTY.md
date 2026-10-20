@@ -156,3 +156,8 @@ The batch archive decoder, CLI and regression cases are authored under Apache-2.
 They implement this project's existing version-1 JSON contract with MoonBit core
 JSON; no external serialization implementation or schema was copied. The e2e
 archive inputs reuse the already-attributed fixtures and authored workflows.
+
+Batch baseline matching, snapshot/provenance handling, CLI and tests are authored
+under Apache-2.0. They extend this project's single-report comparison contract
+using MoonBit core maps and JSON. No external matcher, baseline implementation
+or test suite was copied; end-to-end archives reuse the attributed inputs above.

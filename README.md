@@ -471,6 +471,44 @@ Neither SQL nor reports require a database or a hosted CI account. This workflow
 does not automatically create/update a baseline, suppress the current report,
 compare batch manifests or perform SQL rewriting.
 
+## Compare complete batch archives
+
+`compare_batches(baseline, current)` returns `Result[BatchDelta, String]` for
+trusted reports from the same project/rule version. Both batches must have
+complete, valid reports and valid execution/policy contexts. Any invalid or
+incomplete file rejects the whole comparison, including incomplete files that
+would otherwise be removed. Invalid empty-batch configuration is also rejected.
+
+Files match by exact path label, execution, initial transaction, timeout policy
+and shared initial-timeout fact. File reordering is supported; duplicate keys
+pair by occurrence in each input. Reordering different SQL under an identical
+duplicate key can produce new findings. Path spelling and context changes are
+removals/additions; no path normalization, rename detection or fuzzy matching
+occurs. Within matched files, the single-report exact diagnostic multiset rules
+apply. Use stable distinct labels when migrations need independent identities.
+
+`BatchDelta` retains independent `baseline` and `current` snapshots. Its `files`
+contains `FileDelta` records: optional zero-based `baseline_index`/`current_index`,
+ordered `introduced`/`resolved` diagnostics and a `retained` count. Current entries
+appear first in current order, followed by unmatched baseline entries in baseline
+order. Every input file appears exactly once per side, including clean files.
+Spans refer to the corresponding input snapshot. Delta JSON version 1 encodes
+indices as integers or null and includes both full batch reports. It is distinct
+from the saved-batch input contract. Text output labels both source sides.
+
+```text
+moon run scripts/e2e.mbtx wasm
+moon run cmd/compare_batch -- _build/saved-batch-0.json _build/saved-batch-1.json --json
+moon run cmd/compare_batch -- _build/saved-batch-1.json _build/saved-batch-1.json
+moon run cmd/compare_batch -- _build/saved-batch-1.json _build/saved-batch-0.json --json
+```
+
+These show added findings (exit 1), accepted existing findings (exit 0), and
+resolved findings (exit 0). Read/UTF-8/validation/coverage failures exit 2. A
+baseline gate checks only new findings; the full current snapshot retains its
+own absolute exit code and all existing diagnostics. It does not update the
+trusted baseline automatically. No original SQL files or database are required.
+
 ## SARIF reports for code scanning
 
 `Report::to_sarif(artifact_path)` returns `Result[Json, String]` containing

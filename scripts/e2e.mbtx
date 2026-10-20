@@ -514,6 +514,64 @@ async fn main {
     "json",
   ]).output(timeout_ms=60000)
   assert_eq(restored_recovery.exit_code(), 0)
+  for (before, after, expected) in [(0, 1, 1), (1, 0, 0), (1, 1, 0)] {
+    for format in ["text", "json"] {
+      let args = [
+        "run",
+        "--target",
+        target,
+        "cmd/compare_batch",
+        "--",
+        "_build/saved-batch-\{before}.json",
+        "_build/saved-batch-\{after}.json",
+      ]
+      if format == "json" {
+        args.push("--json")
+      }
+      let output = @shell.Cmd(moon, args).output(timeout_ms=60000)
+      assert_eq(output.exit_code(), expected)
+      if format == "json" {
+        guard @json.parse(output.stdout())
+          is {
+            "baseline": { "files": [_], .. },
+            "current": { "files": [_], .. },
+            "files": Array(files),
+            ..
+          } else {
+          fail("batch delta lost full inputs")
+        }
+        assert_eq(files.length(), if before == after { 1 } else { 2 })
+        assert_eq(
+          output.stdout(),
+          @shell.Cmd(moon, args).output(timeout_ms=60000).stdout(),
+        )
+      } else {
+        assert_true(output.stdout().contains("MigrationLens batch delta:"))
+      }
+    }
+  }
+  for
+    invalid_args in [
+      [],
+      ["_build/saved-batch-2.json", "_build/saved-batch-0.json"],
+      ["_build/saved-batch-0.json", "_build/saved-batch-2.json"],
+      ["_build/saved-batch-0.json", "_build/invalid-utf8.sql"],
+      ["_build/missing-batch-baseline.json", "_build/saved-batch-0.json"],
+      ["_build/saved-batch-0.json", "_build/saved-batch-0.json", "--wrong"],
+    ] {
+    let args = ["run", "--target", target, "cmd/compare_batch", "--"]
+    for arg in invalid_args {
+      args.push(arg)
+    }
+    let output = @shell.Cmd(moon, args).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), 2)
+    assert_true(output.stdout().contains("Cannot compare batch reports:"))
+  }
+  let batch_comparison_recovery = @shell.Cmd(moon, [
+    "run", "--target", target, "cmd/compare_batch", "--", "_build/saved-batch-0.json",
+    "_build/saved-batch-0.json", "--json",
+  ]).output(timeout_ms=60000)
+  assert_eq(batch_comparison_recovery.exit_code(), 0)
   println(
     "Single-file/batch CLI, JSON/SARIF, determinism and malformed input checks passed on \{target}",
   )

@@ -76,6 +76,27 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Historical follow-up notes below record what had run at each milestone. The
+subsequent pushed archive commit `a8931d3` passed all four jobs in
+[Actions run 39375835782](https://github.com/cn-xjr/MigrationLens/actions/runs/39375835782):
+Linux, macOS, Windows and the actual PostgreSQL 18 execution oracle. This
+supersedes the earlier pending-remote status for those database probes; local
+database execution and Windows native execution remain unclaimed.
+
+Batch-baseline properties cover path reorder, added/removed files, repeated
+path/context occurrences, each policy/initial-fact change, exact source-side
+indices, deterministic JSON and conservation of all file/diagnostic counts.
+Snapshots remain independent of input array mutation. Incomplete/invalid inputs
+on either side fail atomically, including invalid empty batches. CLI suites use
+saved real-fixture and authored-workflow archives, exercise text/JSON gates,
+reject missing/non-UTF-8/incomplete inputs and recover with a valid comparison.
+This capability passed 97 unit/documentation tests on each of Wasm, Wasm-GC,
+JavaScript and Linux native using the October 16 compiler/core. Full CLI suites
+passed on all four targets, including actual Linux native processes. Strict
+all-target compilation, formatting and generated interfaces passed. All seven
+SARIF samples passed the external official schema. Remote results for this
+capability require its own pushed commit and completed Actions run.
+
 Batch archive regressions cover exact JSON/text round trips, duplicate paths,
 all context fields, shared timeout facts, signed integer boundaries, incomplete
 SQL and canonical invalid-policy reports. Unknown/duplicate fields, altered

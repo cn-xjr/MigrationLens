@@ -75,6 +75,8 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   scoped timeout review and unchanged downstream dispatch semantics.
 * Batch review archives: strict typed restoration, context consistency, preserved
   invalid-policy reports and offline text/JSON/multi-run SARIF rendering.
+* Batch baselines: exact path/context matching with duplicate occurrences,
+  preserved file/source provenance, atomic coverage checks and new-findings gates.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only
