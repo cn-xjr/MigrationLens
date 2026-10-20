@@ -76,6 +76,20 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Index-backed constraint attachment: 141 unit/documentation tests passed on
+Wasm, Wasm-GC, JavaScript and actual Linux native with October 16 stable.
+The complete Wasm CLI suite and the documented attachment fixture on all four
+CLI targets passed (fixture exit 1 with ML190/ML191). Formatting, strict
+all-target compilation, script checks and interface regeneration passed;
+the public API is unchanged. Tests cover UNIQUE/PRIMARY KEY, explicit timing
+attributes, mixed-action rejection, quoted names, dispatch, savepoint/timeout
+state, source spans, deterministic output and report archive round trips.
+New PostgreSQL probes compile locally and await CI execution for actual locks,
+index renaming/ownership and primary-key nullability/timing attributes.
+The preceding constraint-validation commit `5227201` passed all four jobs in
+[run 39423857814](https://github.com/cn-xjr/MigrationLens/actions/runs/39423857814).
+No local PostgreSQL or Windows native run is claimed.
+
 Constraint validation (October 16 stable toolchain): all 136 unit/documentation
 tests passed on Wasm, Wasm-GC, JavaScript and actual Linux native. Strict
 all-target compilation, formatting, script checks and interface regeneration

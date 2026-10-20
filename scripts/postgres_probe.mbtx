@@ -472,6 +472,33 @@ async fn main {
       "ALTER TABLE migrationlens_probe DROP CONSTRAINT ml_probe_violated", "ALTER TABLE migrationlens_probe VALIDATE CONSTRAINT ml_probe_positive",
     ],
   )
+  let _ = successful("prepare existing-index constraint workflow", [
+    "CREATE TABLE ml_probe_attach(id integer, external_key text)", "INSERT INTO ml_probe_attach VALUES (1, 'order-1001'), (2, 'order-1002')",
+    "CREATE UNIQUE INDEX CONCURRENTLY ml_probe_attach_idx ON ml_probe_attach(external_key)",
+  ])
+  let attached = successful("attach UNIQUE under table lock and rename index", [
+    "BEGIN", "ALTER TABLE ml_probe_attach ADD CONSTRAINT ml_probe_attach_unique UNIQUE USING INDEX ml_probe_attach_idx",
+    "SELECT mode FROM pg_locks WHERE pid=pg_backend_pid() AND relation='ml_probe_attach'::regclass AND granted AND mode='AccessExclusiveLock'",
+    "SELECT conindid='ml_probe_attach_unique'::regclass FROM pg_constraint WHERE conrelid='ml_probe_attach'::regclass AND conname='ml_probe_attach_unique'",
+    "COMMIT",
+  ])
+  assert_eq(attached.stdout().trim().to_owned(), "AccessExclusiveLock\nt")
+  let removed = successful("constraint owns index lifetime", [
+    "ALTER TABLE ml_probe_attach DROP CONSTRAINT ml_probe_attach_unique", "SELECT to_regclass('ml_probe_attach_unique') IS NULL",
+  ])
+  assert_eq(removed.stdout().trim().to_owned(), "t")
+  let _ = successful("primary-key attachment establishes nullability", [
+    "CREATE UNIQUE INDEX CONCURRENTLY ml_probe_attach_pk ON ml_probe_attach(id)",
+    "ALTER TABLE ml_probe_attach ADD PRIMARY KEY USING INDEX ml_probe_attach_pk DEFERRABLE INITIALLY DEFERRED",
+  ])
+  let primary = successful("inspect attached primary-key attributes", [
+    "SELECT attnotnull FROM pg_attribute WHERE attrelid='ml_probe_attach'::regclass AND attname='id'",
+    "SELECT condeferrable AND condeferred FROM pg_constraint WHERE conrelid='ml_probe_attach'::regclass AND contype='p'",
+  ])
+  assert_eq(primary.stdout().trim().to_owned(), "t\nt")
+  let _ = successful("remove attachment probe table", [
+    "DROP TABLE ml_probe_attach",
+  ])
   let _ = successful("remove disposable probe tables", [
     "DROP TABLE migrationlens_probe", "DROP TABLE ml_probe_parent",
   ])

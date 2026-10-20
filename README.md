@@ -770,6 +770,42 @@ reviews validation followed by concurrent index maintenance, without a database.
 Exit 1 contains ML180/ML181; `simple` additionally reports ML101 for REINDEX.
 Semantics follow [PostgreSQL 18 ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html).
 
+## Attach an existing unique index as a constraint
+
+`ALTER TABLE [IF EXISTS] [ONLY] [schema.]table [*] ADD [CONSTRAINT name]
+{UNIQUE | PRIMARY KEY} USING INDEX index` completes the common concurrent-index
+workflow. The index name is unqualified. A single attachment action is covered;
+mixed actions, NOT VALID, extra index clauses and unknown suffixes are incomplete.
+Timing accepts optional `[NOT] DEFERRABLE` followed by `INITIALLY IMMEDIATE`,
+or explicit `DEFERRABLE INITIALLY DEFERRED`. Standalone INITIALLY DEFERRED and
+repeated/reordered attributes are conservatively incomplete.
+
+ML190 warns that the attachment still needs ACCESS EXCLUSIVE on the table.
+ML191 requires catalog eligibility checks and explains index ownership/renaming:
+the constraint takes ownership of the index, which disappears if the constraint
+is dropped. The target must not be partitioned; the existing index must be an
+eligible UNIQUE b-tree with default ordering, no expressions or predicate.
+PRIMARY KEY adds ML192 for possible NOT NULL scans; DEFERRABLE adds ML193 for
+check timing. No data/catalog proof or automatic SQL conversion is performed.
+
+```mbt check
+///|
+test "review online uniqueness through its final locking phase" {
+  let report = @migration_lens.review_sql(
+    "SET lock_timeout=100; CREATE UNIQUE INDEX CONCURRENTLY orders_key_idx ON orders(external_key); ALTER TABLE orders ADD CONSTRAINT orders_key UNIQUE USING INDEX orders_key_idx;",
+    execution=SeparateStatements,
+    max_lock_timeout_ms=100,
+  )
+  assert_true(report.complete)
+  assert_eq(report.diagnostics.map(d => d.code), ["ML190", "ML191"])
+}
+```
+
+`moon run cmd/main -- fixtures/attach-unique.sql separate --require-lock-timeout --json`
+reviews both phases offline and exits 1 for ML190/ML191. `simple` also reports
+ML101 for the concurrent build. Semantics follow
+[PostgreSQL 18 ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html).
+
 ## Development
 
 ```text

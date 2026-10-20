@@ -93,6 +93,9 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
 * Existing-constraint validation: complete validation-only action lists,
   scan/maintenance lock review, foreign-key reference locks and data caveats.
 
+* Online uniqueness completion: concurrent unique-index creation followed by
+  constraint attachment, table locks, index ownership and primary-key scans.
+
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only
 after preserving the existing rule contract. Full PostgreSQL parsing and

@@ -205,3 +205,10 @@ PostgreSQL 18 ALTER TABLE reference and REL_18_STABLE parser grammar:
 (PostgreSQL License). The classifier, diagnostics, tests, database probes and
 `fixtures/validate-constraints.sql` are authored under Apache-2.0; no upstream
 implementation or SQL example was copied.
+
+Index-backed constraint attachment and timing semantics follow the PostgreSQL 18
+ALTER TABLE and CREATE TABLE references (PostgreSQL License):
+<https://www.postgresql.org/docs/18/sql-altertable.html> and
+<https://www.postgresql.org/docs/18/sql-createtable.html>.
+The classifier, warnings, tests, probes and `fixtures/attach-unique.sql` are
+authored under Apache-2.0; no upstream implementation or SQL example is copied.

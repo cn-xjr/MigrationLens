@@ -2,27 +2,7 @@
 // All actions must be validations: a mixed ALTER TABLE can require a stronger
 // lock, so never discard the remainder or infer its semantics from one action.
 fn classify_validate_constraint(words : ArrayView[String]) -> Command {
-  let mut i = 2
-  if words.get(i) == Some("IF") {
-    if words.get(i + 1) != Some("EXISTS") {
-      return Unsupported
-    }
-    i += 2
-  }
-  let only = words.get(i) == Some("ONLY")
-  if only {
-    i += 1
-  }
-  i = match relation_name_end(words, i) {
-    Some(end) => end
-    None => return Unsupported
-  }
-  if words.get(i) == Some("*") {
-    if only {
-      return Unsupported
-    }
-    i += 1
-  }
+  let mut i = 0
   while i < words.length() {
     if words.get(i) != Some("VALIDATE") ||
       words.get(i + 1) != Some("CONSTRAINT") {

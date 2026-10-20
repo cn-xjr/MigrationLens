@@ -9,6 +9,7 @@ priv enum Command {
   Cluster(database_wide~ : Bool)
   Refresh(concurrent~ : Bool, no_data~ : Bool)
   ValidateConstraint
+  AddIndexConstraint(primary_key~ : Bool, deferrable~ : Bool)
   Vacuum(
     full~ : Bool,
     skip_locked~ : Bool,
@@ -92,7 +93,7 @@ fn classify(fragment : Fragment) -> Command {
     }
     ["DROP", "INDEX", ..] => classify_drop(fragment.words[:])
     ["ALTER", "INDEX", ..] => classify_alter_index(fragment.words[:])
-    ["ALTER", "TABLE", ..] => classify_validate_constraint(fragment.words[:])
+    ["ALTER", "TABLE", ..] => classify_alter_table(fragment.words[:])
     ["REINDEX", ..] => classify_reindex(fragment.words[:])
     ["LOCK", ..] => classify_lock(fragment.words[:])
     ["ANALYZE", ..] => classify_analyze(fragment.words[:])
@@ -358,6 +359,17 @@ pub fn review_sql(
             }) +
             "Acquired locks are normally held until transaction end; rollback to an earlier savepoint can release them. Check descendant/view expansion, privileges and workload manually.",
           ),
+        )
+      }
+      AddIndexConstraint(primary_key~, deferrable~) => {
+        if require_lock_timeout || max_lock_timeout_ms is Some(_) {
+          timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)
+        }
+        index_constraint_findings(
+          primary_key,
+          deferrable,
+          fragment.span,
+          diagnostics,
         )
       }
       ValidateConstraint => {
