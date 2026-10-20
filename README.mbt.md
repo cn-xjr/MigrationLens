@@ -8,6 +8,9 @@ verbatim. Unsupported SQL is explicitly incomplete, never silently discarded.
 Follow-up workflows include ANALYZE/VACUUM, [table reordering](#table-reordering-after-index-changes),
 [materialized-view refresh](#refresh-existing-materialized-views) and
 [validation of previously installed constraints](#validate-previously-installed-constraints).
+Constraint rollouts also cover [index attachment](#attach-an-existing-unique-index-as-a-constraint),
+[foreign-key installation](#install-and-validate-foreign-keys-in-separate-phases) and
+[SET NOT NULL](#promote-existing-columns-to-not-null).
 Each reports its catalog-dependent prerequisites rather than assuming they hold.
 
 Currently covers CREATE INDEX, DROP INDEX, BEGIN/START TRANSACTION and
@@ -848,6 +851,44 @@ The fixture assumes data has been checked/repaired before its validation phase;
 the linter does not establish this. Semantics follow
 [PostgreSQL 18 ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html)
 and [CREATE TABLE](https://www.postgresql.org/docs/18/sql-createtable.html).
+
+## Promote existing columns to NOT NULL
+
+`ALTER TABLE ... ALTER [COLUMN] name SET NOT NULL` accepts one or more
+comma-separated SET NOT NULL actions on the same table, using the shared table
+header (IF EXISTS, ONLY, optional schema or `*`; ONLY with `*` is rejected).
+Mixed ALTER actions, DROP NOT NULL, NOT VALID, NO INHERIT and unknown suffixes
+remain incomplete. In particular, dropping a CHECK proof in the same command
+cannot be hidden by reducing the input to its SET NOT NULL action.
+
+ML220 warns about ACCESS EXCLUSIVE table locking. ML221 describes null-free
+data and possible scans: an eligible valid CHECK proving null absence can avoid
+a scan if it is retained by the command, but this does not remove the lock.
+Existing invalid not-null constraints are validated. No nullability facts,
+proof implications or scan avoidance are inferred from SQL alone. Effective
+timeout, savepoint, transaction and dispatch behavior remain unchanged.
+
+```mbt check
+///|
+test "review nullability promotion after a separately installed proof" {
+  let report = @migration_lens.review_sql(
+    "SET lock_timeout=100; ALTER TABLE orders VALIDATE CONSTRAINT orders_key_nn; ALTER TABLE orders ALTER COLUMN external_key SET NOT NULL;",
+    execution=SeparateStatements,
+    max_lock_timeout_ms=100,
+  )
+  assert_true(report.complete)
+  assert_eq(report.diagnostics.map(d => d.code), [
+    "ML180", "ML181", "ML220", "ML221",
+  ])
+}
+```
+
+`moon run cmd/main -- fixtures/set-not-null.sql separate --require-lock-timeout --json`
+reviews proof validation, column promotion, concurrent unique-index creation and
+attachment offline. Exit 1 includes ML180/ML181/ML220/ML221/ML190/ML191; `simple`
+additionally reports ML101 for the index build. The CHECK already exists by
+assumption; CHECK installation and data repair are outside the covered subset.
+Semantics follow [PostgreSQL 18 ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html).
 
 ## Development
 

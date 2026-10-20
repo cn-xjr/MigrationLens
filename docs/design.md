@@ -99,6 +99,9 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
 * Foreign-key rollout: installation locks on both relations, historical versus
   subsequent-row enforcement, referential-action effects and later validation.
 
+* Column nullability promotion: validation-to-SET NOT NULL workflows, strong
+  locks despite possible scan elision, closed action lists and data caveats.
+
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only
 after preserving the existing rule contract. Full PostgreSQL parsing and

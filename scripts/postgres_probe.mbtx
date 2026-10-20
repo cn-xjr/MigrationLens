@@ -532,6 +532,37 @@ async fn main {
     ],
   )
   assert_eq(repaired_fk.stdout().trim().to_owned(), "0")
+  let _ = successful("prepare nullable historical data", [
+    "CREATE TABLE ml_probe_nullability(external_key text, tag text)", "INSERT INTO ml_probe_nullability VALUES ('order-1001','a'), (NULL,'b')",
+  ])
+  rejected(
+    "SET NOT NULL rejects historical NULL",
+    ["ALTER TABLE ml_probe_nullability ALTER COLUMN external_key SET NOT NULL"],
+    "23502",
+  )
+  let _ = successful("repair nulls and prepare validated proof", [
+    "UPDATE ml_probe_nullability SET external_key='order-1002' WHERE external_key IS NULL",
+    "ALTER TABLE ml_probe_nullability ADD CONSTRAINT ml_probe_nn_proof CHECK(external_key IS NOT NULL) NOT VALID",
+    "ALTER TABLE ml_probe_nullability VALIDATE CONSTRAINT ml_probe_nn_proof",
+  ])
+  let promoted = successful(
+    "SET NOT NULL retains strong lock with a validated CHECK",
+    [
+      "BEGIN", "ALTER TABLE ONLY public.ml_probe_nullability ALTER COLUMN external_key SET NOT NULL, ALTER tag SET NOT NULL",
+      "SELECT mode FROM pg_locks WHERE pid=pg_backend_pid() AND relation='ml_probe_nullability'::regclass AND granted AND mode='AccessExclusiveLock'",
+      "SELECT bool_and(attnotnull) FROM pg_attribute WHERE attrelid='ml_probe_nullability'::regclass AND attname IN ('external_key','tag')",
+      "COMMIT",
+    ],
+  )
+  assert_eq(promoted.stdout().trim().to_owned(), "AccessExclusiveLock\nt")
+  rejected(
+    "promoted column rejects later NULL",
+    ["INSERT INTO ml_probe_nullability VALUES (NULL,'c')"],
+    "23502",
+  )
+  let _ = successful("remove nullability probe table", [
+    "DROP TABLE ml_probe_nullability",
+  ])
   let _ = successful("remove disposable probe tables", [
     "DROP TABLE migrationlens_probe", "DROP TABLE ml_probe_parent",
   ])

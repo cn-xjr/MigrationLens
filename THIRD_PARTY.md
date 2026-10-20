@@ -218,3 +218,9 @@ TABLE references above (PostgreSQL License), including NOT VALID, MATCH and
 referential-action behavior. The closed grammar, diagnostics, regression tests,
 orphan/repair/cascade probes and `fixtures/add-foreign-key.sql` are authored under
 Apache-2.0. No upstream implementation or SQL example is copied.
+
+SET NOT NULL semantics and CHECK-based scan elision follow the PostgreSQL 18
+ALTER TABLE reference above (PostgreSQL License). The classifier, diagnostics,
+tests, historical-null/repair/locking probes and `fixtures/set-not-null.sql` are
+authored under Apache-2.0. No upstream implementation or SQL example is copied;
+the project does not claim measured scan avoidance or performance improvement.

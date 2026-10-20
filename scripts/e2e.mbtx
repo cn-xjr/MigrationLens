@@ -50,6 +50,8 @@ async fn main {
     ("fixtures/attach-unique.sql", "simple", true, 1),
     ("fixtures/add-foreign-key.sql", "separate", true, 1),
     ("fixtures/add-foreign-key.sql", "simple", true, 1),
+    ("fixtures/set-not-null.sql", "separate", true, 1),
+    ("fixtures/set-not-null.sql", "simple", true, 1),
     ("fixtures/river-006-bulk-unique.sql", "separate", false, 2),
   ]
   for (file, mode, timeout, expected) in cases {
@@ -150,6 +152,15 @@ async fn main {
         assert_true(output.stdout().contains(code))
       }
       for code in ["ML003", "ML212", "ML213", "ML202"] {
+        assert_true(!output.stdout().contains(code))
+      }
+      assert_eq(output.stdout().contains("ML101"), mode == "simple")
+    }
+    if file == "fixtures/set-not-null.sql" {
+      for code in ["ML180", "ML181", "ML220", "ML221", "ML190", "ML191"] {
+        assert_true(output.stdout().contains(code))
+      }
+      for code in ["ML003", "ML192", "ML202"] {
         assert_true(!output.stdout().contains(code))
       }
       assert_eq(output.stdout().contains("ML101"), mode == "simple")

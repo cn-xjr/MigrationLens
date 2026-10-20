@@ -11,6 +11,7 @@ priv enum Command {
   ValidateConstraint
   AddIndexConstraint(primary_key~ : Bool, deferrable~ : Bool)
   AddForeignKey(not_valid~ : Bool, deferrable~ : Bool, mutates_rows~ : Bool)
+  SetNotNull
   Vacuum(
     full~ : Bool,
     skip_locked~ : Bool,
@@ -361,6 +362,12 @@ pub fn review_sql(
             "Acquired locks are normally held until transaction end; rollback to an earlier savepoint can release them. Check descendant/view expansion, privileges and workload manually.",
           ),
         )
+      }
+      SetNotNull => {
+        if require_lock_timeout || max_lock_timeout_ms is Some(_) {
+          timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)
+        }
+        not_null_findings(fragment.span, diagnostics)
       }
       AddForeignKey(not_valid~, deferrable~, mutates_rows~) => {
         if require_lock_timeout || max_lock_timeout_ms is Some(_) {

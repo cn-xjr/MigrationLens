@@ -76,6 +76,21 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+SET NOT NULL: all 155 unit/documentation tests passed on Wasm, Wasm-GC,
+JavaScript and actual Linux native with October 16 stable. Full portable CLI
+suites passed; the documented proof-validation/promotion/index-attachment
+fixture also ran through the Linux native CLI with expected exit 1 and six
+warnings. Formatting, strict all-target compilation, script checks and interface
+regeneration passed with no public API changes. All seven SARIF samples passed
+the external OASIS 2.1.0 schema. Tests cover 1..32 complete action lists, malformed
+boundaries, CHECK-removal/mixed-command rejection, timeout/savepoint state,
+dispatch distinctions, preserved uncertainty, UTF-16 spans and archive round trips.
+New PostgreSQL probes compile locally and await CI for actual historical-NULL
+failure, data repair, retained strong lock and later write enforcement. These
+probes do not measure scan avoidance. No local database or Windows native run
+is claimed. Foreign-key commit `cb8ce9d` passed all four CI jobs in
+[run 39425758936](https://github.com/cn-xjr/MigrationLens/actions/runs/39425758936).
+
 Foreign-key installation: all 148 unit/documentation tests passed on Wasm,
 Wasm-GC, JavaScript and actual Linux native using October 16 stable. The full
 Wasm CLI suite and the documented install/validate/index fixture on all four
