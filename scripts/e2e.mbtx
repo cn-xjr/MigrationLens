@@ -42,6 +42,8 @@ async fn main {
     ("fixtures/vacuum.sql", "simple", true, 1),
     ("fixtures/cluster.sql", "separate", true, 1),
     ("fixtures/cluster.sql", "simple", true, 1),
+    ("fixtures/refresh.sql", "separate", true, 1),
+    ("fixtures/refresh.sql", "simple", true, 1),
     ("fixtures/river-006-bulk-unique.sql", "separate", false, 2),
   ]
   for (file, mode, timeout, expected) in cases {
@@ -110,6 +112,15 @@ async fn main {
       assert_true(!output.stdout().contains("ML003"))
       assert_true(!output.stdout().contains("ML202"))
       assert_true(!output.stdout().contains("ML162"))
+    }
+    if file == "fixtures/refresh.sql" {
+      for code in ["ML170", "ML171", "ML140"] {
+        assert_true(output.stdout().contains(code))
+      }
+      for code in ["ML003", "ML202", "ML172", "ML173"] {
+        assert_true(!output.stdout().contains(code))
+      }
+      assert_eq(output.stdout().contains("ML101"), mode == "simple")
     }
     if file == "fixtures/river-006-bulk-unique.sql" {
       assert_true(output.stdout().contains("ML003"))

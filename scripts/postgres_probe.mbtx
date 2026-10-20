@@ -383,6 +383,58 @@ async fn main {
     ["SET lock_timeout=100; CLUSTER"],
     "25001",
   )
+  let _ = successful("create disposable materialized view", [
+    "CREATE MATERIALIZED VIEW ml_probe_summary AS SELECT id FROM migrationlens_probe WITH DATA",
+    "CREATE UNIQUE INDEX ml_probe_summary_key ON ml_probe_summary(id)",
+  ])
+  let refreshed = successful(
+    "concurrent refresh is allowed in a transaction and holds EXCLUSIVE",
+    [
+      "BEGIN", "REFRESH MATERIALIZED VIEW CONCURRENTLY public.ml_probe_summary WITH DATA",
+      "SELECT mode FROM pg_locks WHERE pid=pg_backend_pid() AND relation='ml_probe_summary'::regclass AND granted AND mode='ExclusiveLock'",
+      "COMMIT",
+    ],
+  )
+  assert_eq(refreshed.stdout().trim().to_owned(), "ExclusiveLock")
+  rejected(
+    "incompatible concurrent no-data refresh on a populated view",
+    ["REFRESH MATERIALIZED VIEW CONCURRENTLY ml_probe_summary WITH NO DATA"],
+    "42601",
+  )
+  let _ = successful("remove qualifying UNIQUE index", [
+    "DROP INDEX ml_probe_summary_key",
+  ])
+  rejected(
+    "concurrent refresh needs UNIQUE index",
+    ["REFRESH MATERIALIZED VIEW CONCURRENTLY ml_probe_summary"],
+    "55000",
+  )
+  let _ = successful("restore qualifying UNIQUE index", [
+    "CREATE UNIQUE INDEX ml_probe_summary_key ON ml_probe_summary(id)",
+  ])
+  let unpopulated = successful(
+    "ordinary no-data refresh holds ACCESS EXCLUSIVE and clears populated flag",
+    [
+      "BEGIN", "REFRESH MATERIALIZED VIEW ml_probe_summary WITH NO DATA", "SELECT mode FROM pg_locks WHERE pid=pg_backend_pid() AND relation='ml_probe_summary'::regclass AND granted AND mode='AccessExclusiveLock'",
+      "SELECT relispopulated FROM pg_class WHERE oid='ml_probe_summary'::regclass",
+      "COMMIT",
+    ],
+  )
+  assert_eq(unpopulated.stdout().trim().to_owned(), "AccessExclusiveLock\nf")
+  rejected(
+    "no-data materialized view cannot be queried",
+    ["SELECT * FROM ml_probe_summary"],
+    "55000",
+  )
+  rejected(
+    "unpopulated view cannot refresh concurrently",
+    ["REFRESH MATERIALIZED VIEW CONCURRENTLY ml_probe_summary"],
+    "0A000",
+  )
+  let _ = successful("repopulate before concurrent refresh", [
+    "REFRESH MATERIALIZED VIEW ml_probe_summary WITH DATA", "REFRESH MATERIALIZED VIEW CONCURRENTLY ml_probe_summary",
+    "DROP MATERIALIZED VIEW ml_probe_summary",
+  ])
   let _ = successful("remove disposable probe table", [
     "DROP TABLE migrationlens_probe",
   ])

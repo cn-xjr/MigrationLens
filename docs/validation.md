@@ -76,6 +76,20 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Materialized-view refresh: 129 unit/documentation tests passed on all four
+targets with the October 16 toolchain; all portable CLI suites passed, and the
+documented refresh fixture ran through the Linux native CLI with expected exit
+1 and ML170/ML171/ML140. Strict all-target compilation, generated interfaces
+and script checks passed. Regression coverage includes ordinary/concurrent
+refresh in transactions, NO DATA, incompatible flags, timeout rollback,
+malformed input, uncertainty preservation, Unicode spans and archive round trips.
+PostgreSQL probes check both actual lock modes, readability/population state,
+missing UNIQUE indexes and invalid combinations; conflicting-option probes use
+a populated view so the earlier population check does not mask the expected
+42601 error. These new probes compile locally and await remote execution.
+CLUSTER commit `437840c` passed Linux/macOS/Windows and PostgreSQL 18 jobs in
+[run 39421880220](https://github.com/cn-xjr/MigrationLens/actions/runs/39421880220).
+
 CLUSTER validation (October 16 stable toolchain): all 122 unit/documentation
 tests passed on Wasm, Wasm-GC, JavaScript and actual Linux native. Strict
 all-target compilation, formatting and interface regeneration passed with no

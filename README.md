@@ -698,6 +698,38 @@ Changing dispatch to `simple` still permits a named ordinary-table CLUSTER;
 this does not prove a catalog-dependent target is valid. Semantics follow
 [PostgreSQL 18 CLUSTER](https://www.postgresql.org/docs/18/sql-cluster.html).
 
+## Refresh existing materialized views
+
+`REFRESH MATERIALIZED VIEW [CONCURRENTLY] [schema.]name [WITH [NO] DATA]`
+is covered without altering transaction state. PostgreSQL permits concurrent
+refresh inside transaction blocks; ML170 explains the EXCLUSIVE lock versus
+ordinary refresh's ACCESS EXCLUSIVE reader outage. Both retain timeout checks
+and locks until transaction end. ML171 requires manual populated-view and
+full-row, plain-column UNIQUE-index verification. ML172 flags the unscannable
+state caused by WITH NO DATA; repopulation must be non-concurrent.
+CONCURRENTLY WITH NO DATA emits ML173 (error) and taints downstream state.
+Other unconsumed syntax emits ML003. View existence, query cost, privileges,
+index validity and data changes are not inferred or executed.
+
+```mbt check
+///|
+test "review refresh without inventing catalog facts" {
+  let report = @migration_lens.review_sql(
+    "BEGIN; SET LOCAL lock_timeout=100; REFRESH MATERIALIZED VIEW CONCURRENTLY public.order_summary; COMMIT;",
+    execution=SeparateStatements,
+    max_lock_timeout_ms=100,
+  )
+  assert_true(report.complete)
+  assert_eq(report.diagnostics.map(d => d.code), ["ML170", "ML171"])
+}
+```
+
+`moon run cmd/main -- fixtures/refresh.sql separate --require-lock-timeout --json`
+reviews a concurrent index rebuild, refresh and statistics update with no
+database; exit 1 includes ML170/ML171/ML140. `simple` additionally reports ML101
+for REINDEX's transaction conflict. Semantics follow
+[PostgreSQL 18 REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/18/sql-refreshmaterializedview.html).
+
 ## Development
 
 ```text

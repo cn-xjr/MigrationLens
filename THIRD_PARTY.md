@@ -189,3 +189,10 @@ CLUSTER semantics were checked against the PostgreSQL 18 reference:
 The closed classifier, diagnostics, tests, database probes and
 `fixtures/cluster.sql` are authored under Apache-2.0; no upstream code or SQL
 example was copied. Actual target/index/partition facts remain caller checks.
+
+Materialized-view refresh semantics follow the PostgreSQL 18 reference and
+REL_18_STABLE `ExecRefreshMatView` lock selection (PostgreSQL License):
+<https://www.postgresql.org/docs/18/sql-refreshmaterializedview.html> and
+<https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/commands/matview.c>.
+The classifier, diagnostics, tests, probes and `fixtures/refresh.sql` are
+authored under Apache-2.0; no upstream code or SQL examples are copied.

@@ -7,6 +7,7 @@ priv enum Command {
   LockTable(LockMode, Bool)
   Analyze(skip_locked~ : Bool, database_wide~ : Bool)
   Cluster(database_wide~ : Bool)
+  Refresh(concurrent~ : Bool, no_data~ : Bool)
   Vacuum(
     full~ : Bool,
     skip_locked~ : Bool,
@@ -95,6 +96,8 @@ fn classify(fragment : Fragment) -> Command {
     ["ANALYZE", ..] => classify_analyze(fragment.words[:])
     ["VACUUM", ..] => classify_vacuum(fragment.words[:])
     ["CLUSTER", ..] => classify_cluster(fragment.words[:])
+    ["REFRESH", "MATERIALIZED", "VIEW", ..] =>
+      classify_refresh(fragment.words[:])
     ["CREATE", ..] => {
       let mut depth = 0
       for word in fragment.words {
@@ -355,6 +358,25 @@ pub fn review_sql(
           ),
         )
       }
+      Refresh(concurrent~, no_data~) =>
+        if concurrent && no_data {
+          diagnostics.push(
+            finding(
+              "ML173",
+              Error,
+              fragment.span,
+              "CONCURRENTLY and WITH NO DATA cannot be combined",
+              "Use a populated view with CONCURRENTLY WITH DATA, or a non-concurrent WITH NO DATA operation with a planned reader outage. Resolve this server error before assuming later SQL executes.",
+            ),
+          )
+          timeouts.taint()
+          tx = Uncertain
+        } else {
+          if require_lock_timeout || max_lock_timeout_ms is Some(_) {
+            timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)
+          }
+          refresh_findings(concurrent, no_data, fragment.span, diagnostics)
+        }
       Cluster(database_wide~) => {
         if require_lock_timeout || max_lock_timeout_ms is Some(_) {
           timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)

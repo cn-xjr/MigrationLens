@@ -87,6 +87,9 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
 * Table reordering: targeted/database-wide CLUSTER, rewrite/lock warnings,
   known transaction conflicts and explicit partition/index catalog limitations.
 
+* Materialized-view refresh: reader-blocking versus concurrent locks, catalog
+  prerequisites, unscannable NO DATA state and incompatible-option rejection.
+
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only
 after preserving the existing rule contract. Full PostgreSQL parsing and
