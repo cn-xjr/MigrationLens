@@ -21,15 +21,15 @@ fn main {
       return
     }
   }
-  let entries = match parse_entries(source) {
-    Ok(entries) => entries
+  let manifest = match parse_entries(source) {
+    Ok(manifest) => manifest
     Err(e) => {
       input_failure(e)
       return
     }
   }
   let inputs = []
-  for i, entry in entries {
+  for i, entry in manifest.entries {
     let source = @utf8.decode(@fs.read_file_to_bytes(entry.path)) catch {
       e => {
         input_failure(
@@ -49,7 +49,10 @@ fn main {
       ),
     )
   }
-  let batch = @lens.review_migrations(inputs[:])
+  let batch = @lens.review_migrations(
+    inputs[:],
+    initial_lock_timeout_ms?=manifest.initial_lock_timeout_ms,
+  )
   if args.get(1) == Some("--sarif") {
     match batch.to_sarif() {
       Ok(data) => println(data.stringify())

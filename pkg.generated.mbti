@@ -6,15 +6,16 @@ import {
 }
 
 // Values
-pub fn review_migrations(ArrayView[Migration]) -> BatchReport
+pub fn review_migrations(ArrayView[Migration], initial_lock_timeout_ms? : Int32) -> BatchReport
 
-pub fn review_sql(String, execution~ : Execution, initial_transaction? : Bool, require_lock_timeout? : Bool, max_lock_timeout_ms? : Int32) -> Report
+pub fn review_sql(String, execution~ : Execution, initial_transaction? : Bool, require_lock_timeout? : Bool, max_lock_timeout_ms? : Int32, initial_lock_timeout_ms? : Int32) -> Report
 
 // Errors
 
 // Types and methods
 pub struct BatchReport {
   files : Array[FileReport]
+  initial_lock_timeout_ms : Int32?
 }
 pub fn BatchReport::exit_code(Self) -> Int32
 pub fn BatchReport::to_json(Self) -> Json

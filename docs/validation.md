@@ -76,6 +76,22 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Initial-session timeout regressions cover unknown/zero/positive/maximum/negative
+values, policy opt-in, reset-to-unknown, rollback/commit/savepoint/chain behavior,
+unknown SQL/dispatch, external rollback baselines, independent batch initialization
+and retained JSON/SARIF context. Invalid empty-batch configuration cannot return
+exit 0. Manifest tests enforce the new optional top-level integer's range/type
+and duplicate-key rejection. CLI suites exercise initial values, repeated/invalid
+options and the session manifest. A new database probe demonstrates differing
+current/pre-transaction values across external rollback; execution is pending.
+For this follow-up, 63 unit/documentation tests passed on all four targets with
+the October 16 toolchain, including actual Linux native tests. Strict all-target
+compilation and formatting/interface checks passed. Single-file/batch CLI suites
+passed on Wasm, Wasm-GC, JavaScript and Linux native; the session-bearing SARIF and
+prior single-file/batch samples passed the official schema locally. Windows
+native execution and the added PostgreSQL probes remain unexecuted locally;
+remote CI requires a separately authorized push and an actual run.
+
 REINDEX option tests cover enabled/disabled boolean spellings, option ordering,
 tablespace review, timeout policy, retained source, duplicate/unknown clauses
 and malformed lists. `fixtures/reindex-options.sql` exercises ML111 in the CLI.

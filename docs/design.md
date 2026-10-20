@@ -61,6 +61,10 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   lock and constraint-naming warning and effective-timeout checks.
 * Independent migration lists: per-file context/policy, continued coverage after
   SQL errors, severity aggregation, strict file manifests and multi-run SARIF.
+* REINDEX options: explicit boolean effects and tablespace review, with ambiguous
+  combinations rejected instead of silently selecting precedence.
+* Connection entry facts: caller-assured initial session timeout, scope-aware
+  updates, unknown external rollback baselines and audited common batch defaults.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only

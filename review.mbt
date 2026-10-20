@@ -121,12 +121,16 @@ fn classify(fragment : Fragment) -> Command {
 /// must describe dispatch; comments never override the explicit execution mode.
 /// A positive max_lock_timeout_ms also enables timeout checking. Invalid limits
 /// yield ML011 and an incomplete report without analyzing statements.
+/// initial_lock_timeout_ms is a caller-assured session value with no unmodeled
+/// SET LOCAL override. Existing-transaction rollback has an unknown earlier
+/// baseline. Negative initial values yield ML012 without analyzing statements.
 pub fn review_sql(
   source : String,
   execution~ : Execution,
   initial_transaction~ : Bool = false,
   require_lock_timeout~ : Bool = false,
   max_lock_timeout_ms? : Int32,
+  initial_lock_timeout_ms? : Int32,
 ) -> Report {
   if max_lock_timeout_ms is Some(limit) && limit <= 0 {
     return {
@@ -144,6 +148,22 @@ pub fn review_sql(
       ],
     }
   }
+  if initial_lock_timeout_ms is Some(value) && value < 0 {
+    return {
+      source,
+      statements: 0,
+      complete: false,
+      diagnostics: [
+        finding(
+          "ML012",
+          Incomplete,
+          { start: 0, end: source.length(), },
+          "initial_lock_timeout_ms must be a nonnegative 32-bit integer",
+          "Supply an assured session-level value from 0 through 2147483647, or omit it when unknown.",
+        ),
+      ],
+    }
+  }
   let scanned = scan(source)
   let diagnostics = scanned.errors.copy()
   let mut complete = diagnostics.is_empty()
@@ -156,7 +176,7 @@ pub fn review_sql(
   }
   let batch = execution == SimpleQuery && scanned.fragments.length() > 1
   let mut open_span : Span = { start: 0, end: 0, }
-  let timeouts = TimeoutState::new()
+  let timeouts = TimeoutState::new(initial_lock_timeout_ms)
   if execution == Unknown {
     complete = false
     diagnostics.push(

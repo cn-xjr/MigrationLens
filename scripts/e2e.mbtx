@@ -63,6 +63,22 @@ async fn main {
     assert_eq(again.stdout(), output.stdout(), msg="deterministic report")
   }
   @fs.mkdir("_build", allow_exist=true)
+  for (value, expected) in [("100", 0), ("0", 1)] {
+    let output = @shell.Cmd(moon, [
+      "run",
+      "--target",
+      target,
+      "cmd/main",
+      "--",
+      "fixtures/postgres-migrations-concurrent.sql",
+      "separate",
+      "--json",
+      "--require-lock-timeout",
+      "--initial-lock-timeout-ms=\{value}",
+    ]).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), expected)
+    assert_eq(output.stdout().contains("ML201"), expected == 1)
+  }
   for
     (file, mode, expected) in [
       ("fixtures/batch-indexes.sql", "separate", 0),
@@ -137,6 +153,14 @@ async fn main {
       ["_build/missing-migrationlens-file.sql", "separate"],
       ["fixtures/batch-indexes.sql", "bogus"],
       ["fixtures/batch-indexes.sql", "separate", "--bogus"],
+      ["fixtures/batch-indexes.sql", "separate", "--initial-lock-timeout-ms=-1"],
+      [
+        "fixtures/batch-indexes.sql", "separate", "--initial-lock-timeout-ms=2147483648",
+      ],
+      [
+        "fixtures/batch-indexes.sql", "separate", "--initial-lock-timeout-ms=0",
+        "--initial-lock-timeout-ms=1",
+      ],
       ["fixtures/batch-indexes.sql", "separate", "--json", "--sarif"],
       ["./fixtures/batch-indexes.sql", "separate", "--sarif"],
       ["fixtures/timeout-limit.sql", "separate", "--max-lock-timeout-ms=0"],
@@ -246,6 +270,41 @@ async fn main {
     "run", "--target", target, "cmd/batch", "--", "_build/batch-one.json", "--json",
   ]).output(timeout_ms=60000)
   assert_eq(recovery.exit_code(), 0)
+  for format in ["--json", "--sarif"] {
+    let output = @shell.Cmd(moon, [
+      "run", "--target", target, "cmd/batch", "--", "fixtures/review-session-manifest.json",
+      format,
+    ]).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), 0)
+    let data = @json.parse(output.stdout())
+    if format == "--json" {
+      guard data
+        is {
+          "initial_lock_timeout_ms": 2000,
+          "files": [{ "context": { "initial_lock_timeout_ms": 2000, .. }, .. }],
+          ..
+        } else {
+        fail("batch initial timeout fact lost")
+      }
+    } else {
+      guard data
+        is {
+          "runs": [
+            {
+              "properties": {
+                "migrationLensContext": { "initial_lock_timeout_ms": 2000, .. },
+                ..
+              },
+              ..
+            },
+          ],
+          ..
+        } else {
+        fail("SARIF initial fact lost")
+      }
+      @fs.write_file("_build/sarif-session.json", output.stdout())
+    }
+  }
   println(
     "Single-file/batch CLI, JSON/SARIF, determinism and malformed input checks passed on \{target}",
   )

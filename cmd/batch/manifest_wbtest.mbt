@@ -1,7 +1,7 @@
 ///|
 test "manifest validates versions field names types and policy values" {
   let good = "{\"format_version\":1,\"migrations\":[{\"path\":\"fixtures\\\\reindex.sql\",\"execution\":\"simple\",\"initial_transaction\":true,\"require_lock_timeout\":true,\"max_lock_timeout_ms\":2147483647}]}"
-  let entries = parse_entries(good).unwrap()
+  let entries = parse_entries(good).unwrap().entries
   assert_eq(entries[0].path, "fixtures/reindex.sql")
   assert_eq(entries[0].execution, @lens.SimpleQuery)
   assert_true(entries[0].initial_transaction && entries[0].require_lock_timeout)
@@ -65,11 +65,31 @@ test "manifest refuses duplicate decoded keys bad paths and resource overflow" {
     (entry + ",").repeat(999) +
     entry +
     "]}"
-  assert_eq(parse_entries(maximum).unwrap().length(), 1000)
+  assert_eq(parse_entries(maximum).unwrap().entries.length(), 1000)
   assert_true(
     parse_entries(
       "{\"format_version\":1,\"migrations\":[{\"path\":\"a.sql\",\"execution\":\"unknown\"}]}",
     )
     is Ok(_),
   )
+}
+
+///|
+test "manifest initial timeout is optional nonnegative and strictly typed" {
+  for value in ["0", "1", "2147483647"] {
+    let source = "{\"format_version\":1,\"initial_lock_timeout_ms\":" +
+      value +
+      ",\"migrations\":[{\"path\":\"a.sql\",\"execution\":\"separate\"}]}"
+    assert_true(
+      parse_entries(source).unwrap().initial_lock_timeout_ms is Some(_),
+    )
+  }
+  for value in ["-1", "1.5", "2147483648", "null", "\"100\""] {
+    let source = "{\"format_version\":1,\"initial_lock_timeout_ms\":" +
+      value +
+      ",\"migrations\":[{\"path\":\"a.sql\",\"execution\":\"separate\"}]}"
+    assert_true(parse_entries(source) is Err(_))
+  }
+  let duplicate = "{\"format_version\":1,\"initial_lock_timeout_ms\":0,\"initial_lock_timeout_ms\":1,\"migrations\":[{\"path\":\"a.sql\",\"execution\":\"separate\"}]}"
+  assert_true(parse_entries(duplicate) is Err(_))
 }

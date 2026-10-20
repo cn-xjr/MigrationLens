@@ -8,7 +8,13 @@ priv struct Entry {
 }
 
 ///|
-fn parse_entries(source : String) -> Result[Array[Entry], String] {
+priv struct Manifest {
+  entries : Array[Entry]
+  initial_lock_timeout_ms : Int32?
+}
+
+///|
+fn parse_entries(source : String) -> Result[Manifest, String] {
   if source.length() > 1000000 {
     return Err("Manifest exceeds 1,000,000 UTF-16 units")
   }
@@ -22,14 +28,31 @@ fn parse_entries(source : String) -> Result[Array[Entry], String] {
         "Invalid JSON manifest (duplicate keys are rejected): \{Repr(e)}",
       )
   }
-  guard value is Object(root) && root.length() == 2 else {
-    return Err("Manifest must contain exactly format_version and migrations")
+  guard value is Object(root) else { return Err("Manifest must be an object") }
+  for key in root.keys() {
+    if !["format_version", "migrations", "initial_lock_timeout_ms"].contains(
+        key,
+      ) {
+      return Err(
+        "Manifest supports only format_version, migrations and optional initial_lock_timeout_ms",
+      )
+    }
   }
   guard value is { "format_version": 1, "migrations": Array(items), .. } else {
     return Err("Expected format_version=1 and a migrations array")
   }
   if items.is_empty() || items.length() > 1000 {
     return Err("Manifest requires 1 through 1000 migration entries")
+  }
+  let initial_lock_timeout_ms = match root.get("initial_lock_timeout_ms") {
+    None => None
+    Some(Number(n, ..)) if n >= 0 &&
+      n <= 2147483647.0 &&
+      n == n.to_int().to_double() => Some(n.to_int())
+    _ =>
+      return Err(
+        "initial_lock_timeout_ms must be an integer from 0 through 2147483647",
+      )
   }
   let entries = []
   for i, item in items {
@@ -102,5 +125,5 @@ fn parse_entries(source : String) -> Result[Array[Entry], String] {
       maximum,
     })
   }
-  Ok(entries)
+  Ok({ entries, initial_lock_timeout_ms, })
 }

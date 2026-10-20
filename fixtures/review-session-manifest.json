@@ -1,0 +1,7 @@
+{
+  "format_version": 1,
+  "initial_lock_timeout_ms": 2000,
+  "migrations": [
+    { "path": "fixtures/postgres-migrations-concurrent.sql", "execution": "separate", "require_lock_timeout": true }
+  ]
+}

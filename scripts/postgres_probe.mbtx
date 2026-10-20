@@ -258,6 +258,13 @@ async fn main {
   let _ = successful("ordinary multi-name drop", [
     "DROP INDEX IF EXISTS public.ml_probe_b, public.ml_probe_missing CASCADE",
   ])
+  let external_rollback = successful(
+    "external rollback baseline differs from current session setting",
+    [
+      "SET lock_timeout='2s'", "BEGIN", "SET lock_timeout=100", "ROLLBACK", "SHOW lock_timeout",
+    ],
+  )
+  assert_eq(external_rollback.stdout().trim().to_owned(), "2s")
   let _ = successful("remove disposable probe table", [
     "DROP TABLE migrationlens_probe",
   ])

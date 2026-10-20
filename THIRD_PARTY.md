@@ -114,3 +114,10 @@ REINDEX reference cited above. The option parser, tests and
 `fixtures/reindex-options.sql` are authored under Apache-2.0; no upstream source
 or documentation examples were copied. Tablespace warnings do not infer catalog
 or capacity facts.
+
+Initial session timeout handling uses the existing PostgreSQL SET/ROLLBACK
+semantics and lock_timeout reference:
+<https://www.postgresql.org/docs/18/runtime-config-client.html#GUC-LOCK-TIMEOUT>.
+The context API, tests and `fixtures/review-session-manifest.json` are authored
+under Apache-2.0. No live connection is queried and no external implementation
+or fixture was copied for this capability.

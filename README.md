@@ -147,7 +147,8 @@ exits 1; use 10000 for an exit-0 comparison. Invalid or repeated maximum
 options exit 2. Numeric values are tracked through the same savepoint,
 commit/rollback and chain rules as the finite-timeout policy.
 
-Initial/default timeout values are unknown, not assumed zero. Positive finite
+Initial timeout values are unknown unless explicitly supplied, not assumed zero.
+RESET/DEFAULT targets remain unknown even when an initial current value is supplied. Positive finite
 timeouts established by this input satisfy the policy; zero reports ML201,
 unknown reports ML202. SET LOCAL outside a transaction reports ML200 even when
 the policy is off because the setting has no effect. SET and SET LOCAL are
@@ -155,6 +156,38 @@ transactional; rollback restores earlier values, commit discards local settings,
 and release retains current settings while removing the savepoint and its
 descendants. Duplicate savepoint names select the most recent surviving entry.
 Unknown SQL taints both transaction and timeout state.
+
+## Known session timeout at file entry
+
+Supply `initial_lock_timeout_ms` when the caller can assure the session-level
+setting at file entry and there is no unmodeled SET LOCAL override. It accepts
+0 (disabled) through 2147483647 milliseconds; omission means unknown. This is a
+fact about the connection, not a command that changes it or a policy switch.
+Use `require_lock_timeout` or `max_lock_timeout_ms` to enable the corresponding
+review policy. Negative initial values produce ML012 and incomplete analysis.
+
+```mbt check
+///|
+test "review a connection configured outside the migration" {
+  let report = @migration_lens.review_sql(
+    "CREATE INDEX CONCURRENTLY a ON t (id);",
+    execution=SeparateStatements,
+    require_lock_timeout=true,
+    initial_lock_timeout_ms=2000,
+  )
+  assert_eq(report.exit_code(), 0)
+}
+```
+
+`moon run cmd/main -- fixtures/postgres-migrations-concurrent.sql separate --require-lock-timeout --initial-lock-timeout-ms=2000`
+exits 0; an initial value of 0 reports ML201 and exits 1. SET, SET LOCAL,
+savepoints, commit, rollback and chaining then update the supplied state using
+the normal rules. RESET/DEFAULT is not inferred from this current-session fact.
+When the file starts inside an existing transaction, its earlier rollback
+baseline is unknown: rolling it back discards certainty about the supplied
+value. Unknown SQL also discards certainty, and an initial value never fixes
+unknown dispatch. Existing text/JSON behavior is preserved when the option is
+omitted. Single-file version-1 JSON remains the same report model.
 
 Timeout values: nonnegative integer milliseconds, DEFAULT, or quoted integer
 durations with `ms`, `s`, `min`, `h`, `d`, at most 2,147,483,647 milliseconds.
@@ -223,7 +256,13 @@ moon run cmd/batch -- fixtures/review-manifest.json --sarif
 
 Both examples review three files and exit 2 while retaining the clean,
 warning and incomplete reports. With no format flag, the CLI prints text.
-The manifest contains `format_version: 1` and a `migrations` array. Every entry
+The manifest contains `format_version: 1` and a `migrations` array. An optional
+top-level `initial_lock_timeout_ms` supplies the same starting session fact for
+each independent file; it never flows from an earlier file. `BatchReport` exposes
+that fact, and JSON/SARIF records it when supplied. It is a common connection
+setting, not a per-entry field. Try
+`moon run cmd/batch -- fixtures/review-session-manifest.json --json` (exit 0).
+Every entry
 requires `path` and `execution` (`separate`, `simple`, `transaction`, `unknown`),
 and optionally boolean `initial_transaction` / `require_lock_timeout` and a
 positive integer `max_lock_timeout_ms` up to 2147483647. Paths are resolved from

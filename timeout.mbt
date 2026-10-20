@@ -21,8 +21,14 @@ priv struct TimeoutState {
 }
 
 ///|
-fn TimeoutState::new() -> TimeoutState {
-  { session: Default, scoped: None, at_begin: Default, marks: [], }
+fn TimeoutState::new(initial : Int32?) -> TimeoutState {
+  let session = match initial {
+    None => Default
+    Some(0) => Disabled
+    Some(value) => Finite(value)
+  }
+  // An external transaction's earlier session baseline is not supplied.
+  { session, scoped: None, at_begin: Default, marks: [], }
 }
 
 ///|
