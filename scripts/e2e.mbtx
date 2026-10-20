@@ -27,6 +27,7 @@ async fn main {
     ("fixtures/drop-indexes.sql", "separate", false, 1),
     ("fixtures/reindex.sql", "separate", true, 0),
     ("fixtures/reindex.sql", "simple", true, 1),
+    ("fixtures/replace-index.sql", "separate", true, 1),
     ("fixtures/river-006-bulk-unique.sql", "separate", false, 2),
   ]
   for (file, mode, timeout, expected) in cases {
@@ -44,6 +45,10 @@ async fn main {
     }
     if file == "fixtures/drop-indexes.sql" {
       assert_true(output.stdout().contains("ML107"))
+    }
+    if file == "fixtures/replace-index.sql" {
+      assert_true(output.stdout().contains("ML110"))
+      assert_true(!output.stdout().contains("ML003"))
     }
     if file == "fixtures/river-006-bulk-unique.sql" {
       assert_true(output.stdout().contains("ML003"))

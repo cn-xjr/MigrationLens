@@ -97,3 +97,8 @@ neither the specification nor schema is redistributed in this repository.
 No SARIF exporter implementation, examples or tests were copied. Export and
 test code is authored under the root Apache-2.0 license. Validation used the
 external Python jsonschema CLI (MIT), not a library/runtime dependency.
+
+Index rename syntax/lock/constraint semantics were checked against PostgreSQL 18
+ALTER INDEX: <https://www.postgresql.org/docs/18/sql-alterindex.html>.
+`fixtures/replace-index.sql` and its regression cases are authored examples,
+Apache-2.0; no SQL or implementation was copied from that documentation.

@@ -2,6 +2,7 @@
 priv enum Command {
   Index(Bool)
   Reindex(Bool)
+  RenameIndex
   InvalidIndex(String)
   Begin
   Finish(rollback~ : Bool, chain~ : Bool)
@@ -73,6 +74,20 @@ fn classify(fragment : Fragment) -> Command {
       )
     }
     ["DROP", "INDEX", ..] => classify_drop(fragment.words[:])
+    ["ALTER", "INDEX", .. rest] => {
+      let names = match rest {
+        ["IF", "EXISTS", .. tail] => tail
+        _ => rest
+      }
+      match names {
+        [old, "RENAME", "TO", new] if index_identifier(old) &&
+          index_identifier(new) => RenameIndex
+        [schema, ".", old, "RENAME", "TO", new] if index_identifier(schema) &&
+          index_identifier(old) &&
+          index_identifier(new) => RenameIndex
+        _ => Unsupported
+      }
+    }
     ["REINDEX", "INDEX", .. rest] => {
       let (concurrent, name) = match rest {
         ["CONCURRENTLY", .. name] => (true, name)
@@ -257,6 +272,20 @@ pub fn review_sql(
         )
         timeouts.taint()
         tx = Uncertain
+      }
+      RenameIndex => {
+        if require_lock_timeout || max_lock_timeout_ms is Some(_) {
+          timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)
+        }
+        diagnostics.push(
+          finding(
+            "ML110",
+            Warning,
+            fragment.span,
+            "Index rename requires a SHARE UPDATE EXCLUSIVE lock",
+            "Review lock contention and constraint naming: a linked UNIQUE, PRIMARY KEY or EXCLUDE constraint is renamed too. Catalog existence and target-name collisions are not checked.",
+          ),
+        )
       }
       Index(concurrent) | Reindex(concurrent) => {
         if command is Reindex(false) && tx != Idle {

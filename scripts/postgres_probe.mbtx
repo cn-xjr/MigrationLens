@@ -238,6 +238,12 @@ async fn main {
   let _ = successful("qualified concurrent drop with RESTRICT", [
     "DROP INDEX CONCURRENTLY public.ml_probe_a RESTRICT",
   ])
+  let _ = successful("rename existing index in transaction", [
+    "BEGIN", "ALTER INDEX public.ml_probe_b RENAME TO ml_probe_renamed", "COMMIT",
+  ])
+  let _ = successful("restore index name", [
+    "ALTER INDEX ml_probe_renamed RENAME TO ml_probe_b",
+  ])
   let _ = successful("ordinary multi-name drop", [
     "DROP INDEX IF EXISTS public.ml_probe_b, public.ml_probe_missing CASCADE",
   ])

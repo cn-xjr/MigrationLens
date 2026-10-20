@@ -76,6 +76,12 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Index rename regressions cover the create/drop/rename replacement workflow,
+quoted/qualified names, IF EXISTS, transaction-local timeout, source ranges,
+deterministic reports and unsupported trailing clauses. The database probe
+adds a transactional rename and restoration of a disposable index; these added
+database cases are strictly compiled only, with execution pending.
+
 SARIF regression coverage includes clean, covered and incomplete reports,
 duplicate rule descriptors without merging results, retained source/severity/
 message/help/spans, deterministic JSON round trips, UTF-8 URI encoding, Windows

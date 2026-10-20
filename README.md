@@ -48,6 +48,19 @@ are explicitly incomplete. See [PostgreSQL 18 REINDEX](https://www.postgresql.or
 `moon run cmd/main -- fixtures/reindex.sql separate --require-lock-timeout`
 exits 0; sending that same file with `simple` reports ML101 and exits 1.
 
+Index replacement workflows support `ALTER INDEX [IF EXISTS] name RENAME TO new_name`.
+The old name may be schema-qualified; the new name must be one identifier.
+Renaming reports ML110 for its SHARE UPDATE EXCLUSIVE lock and possible linked
+constraint rename. It participates in effective timeout policy, including
+SET LOCAL in an explicit transaction. No catalog existence, name collision,
+definition equivalence or atomic replacement guarantee is inferred. Other ALTER
+INDEX forms are incomplete. This follows [PostgreSQL 18 ALTER INDEX](https://www.postgresql.org/docs/18/sql-alterindex.html).
+
+`moon run cmd/main -- fixtures/replace-index.sql separate --require-lock-timeout`
+reviews a complete concurrent create/drop/rename workflow and exits 1 for ML110.
+Sending the whole file with `simple` additionally reports concurrent transaction
+conflicts. This is an authored review example; it does not execute SQL.
+
 ```mbt check
 ///|
 test "review an index migration" {
