@@ -435,8 +435,45 @@ async fn main {
     "REFRESH MATERIALIZED VIEW ml_probe_summary WITH DATA", "REFRESH MATERIALIZED VIEW CONCURRENTLY ml_probe_summary",
     "DROP MATERIALIZED VIEW ml_probe_summary",
   ])
-  let _ = successful("remove disposable probe table", [
-    "DROP TABLE migrationlens_probe",
+  let _ = successful("prepare previously installed constraints on real rows", [
+    "INSERT INTO migrationlens_probe(id) VALUES (1), (2)", "CREATE TABLE ml_probe_parent(id integer PRIMARY KEY)",
+    "INSERT INTO ml_probe_parent(id) VALUES (1), (2)", "ALTER TABLE migrationlens_probe ADD CONSTRAINT ml_probe_positive CHECK(id>0) NOT VALID, ADD CONSTRAINT ml_probe_notnull NOT NULL id NOT VALID, ADD CONSTRAINT ml_probe_fk FOREIGN KEY(id) REFERENCES ml_probe_parent(id) NOT VALID",
+  ])
+  let validated = successful(
+    "validate CHECK and NOT NULL together under maintenance lock",
+    [
+      "BEGIN", "ALTER TABLE IF EXISTS ONLY public.migrationlens_probe VALIDATE CONSTRAINT ml_probe_positive, VALIDATE CONSTRAINT ml_probe_notnull",
+      "SELECT mode FROM pg_locks WHERE pid=pg_backend_pid() AND relation='migrationlens_probe'::regclass AND granted AND mode='ShareUpdateExclusiveLock'",
+      "SELECT bool_and(convalidated) FROM pg_constraint WHERE conrelid='migrationlens_probe'::regclass AND conname IN ('ml_probe_positive','ml_probe_notnull')",
+      "COMMIT",
+    ],
+  )
+  assert_eq(validated.stdout().trim().to_owned(), "ShareUpdateExclusiveLock\nt")
+  let foreign_key = successful(
+    "foreign-key validation locks referenced table",
+    [
+      "BEGIN", "ALTER TABLE migrationlens_probe* VALIDATE CONSTRAINT ml_probe_fk",
+      "SELECT mode FROM pg_locks WHERE pid=pg_backend_pid() AND relation='ml_probe_parent'::regclass AND granted AND mode='RowShareLock'",
+      "COMMIT",
+    ],
+  )
+  assert_eq(foreign_key.stdout().trim().to_owned(), "RowShareLock")
+  let _ = successful("install intentionally violated historical CHECK", [
+    "ALTER TABLE migrationlens_probe ADD CONSTRAINT ml_probe_violated CHECK(id<0) NOT VALID",
+  ])
+  rejected(
+    "validation detects existing data violations",
+    ["ALTER TABLE migrationlens_probe VALIDATE CONSTRAINT ml_probe_violated"],
+    "23514",
+  )
+  let _ = successful(
+    "remove violation and revalidate an already valid constraint",
+    [
+      "ALTER TABLE migrationlens_probe DROP CONSTRAINT ml_probe_violated", "ALTER TABLE migrationlens_probe VALIDATE CONSTRAINT ml_probe_positive",
+    ],
+  )
+  let _ = successful("remove disposable probe tables", [
+    "DROP TABLE migrationlens_probe", "DROP TABLE ml_probe_parent",
   ])
   println(
     "PostgreSQL 18 transaction, timeout, lock and maintenance execution probes passed",

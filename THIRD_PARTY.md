@@ -184,6 +184,7 @@ table-level locking documentation (PostgreSQL License) define the behavior:
 No upstream implementation or documentation text was copied. The READ ONLY
 wording also follows SET TRANSACTION: DDL restrictions are not limited to
 non-temporary relations.
+
 CLUSTER semantics were checked against the PostgreSQL 18 reference:
 <https://www.postgresql.org/docs/18/sql-cluster.html> (PostgreSQL License).
 The closed classifier, diagnostics, tests, database probes and
@@ -196,3 +197,11 @@ REL_18_STABLE `ExecRefreshMatView` lock selection (PostgreSQL License):
 <https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/commands/matview.c>.
 The classifier, diagnostics, tests, probes and `fixtures/refresh.sql` are
 authored under Apache-2.0; no upstream code or SQL examples are copied.
+
+Constraint-validation grammar, lock levels and constraint kinds follow the
+PostgreSQL 18 ALTER TABLE reference and REL_18_STABLE parser grammar:
+<https://www.postgresql.org/docs/18/sql-altertable.html> and
+<https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/parser/gram.y>
+(PostgreSQL License). The classifier, diagnostics, tests, database probes and
+`fixtures/validate-constraints.sql` are authored under Apache-2.0; no upstream
+implementation or SQL example was copied.

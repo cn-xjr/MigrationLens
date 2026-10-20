@@ -5,6 +5,11 @@ Reports potentially blocking ordinary index operations and concurrent index
 operations conflicting with a declared existing transaction. Source is retained
 verbatim. Unsupported SQL is explicitly incomplete, never silently discarded.
 
+Follow-up workflows include ANALYZE/VACUUM, [table reordering](#table-reordering-after-index-changes),
+[materialized-view refresh](#refresh-existing-materialized-views) and
+[validation of previously installed constraints](#validate-previously-installed-constraints).
+Each reports its catalog-dependent prerequisites rather than assuming they hold.
+
 Currently covers CREATE INDEX, DROP INDEX, BEGIN/START TRANSACTION and
 COMMIT/ROLLBACK, including WORK/TRANSACTION suffixes.
 BEGIN/START TRANSACTION also accept ISOLATION LEVEL (SERIALIZABLE, REPEATABLE
@@ -729,6 +734,41 @@ reviews a concurrent index rebuild, refresh and statistics update with no
 database; exit 1 includes ML170/ML171/ML140. `simple` additionally reports ML101
 for REINDEX's transaction conflict. Semantics follow
 [PostgreSQL 18 REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/18/sql-refreshmaterializedview.html).
+
+## Validate previously installed constraints
+
+`ALTER TABLE [IF EXISTS] [ONLY] [schema.]name [*] VALIDATE CONSTRAINT name`
+supports comma-separated validation actions on one table. ONLY with `*` is
+rejected. Mixed ALTER TABLE actions remain incomplete (ML003): reducing a
+mixed command to its validation action could hide a stronger lock.
+This completes the validation phase for constraints already installed as NOT
+VALID by an earlier, separately reviewed migration; ADD CONSTRAINT is not covered.
+
+ML180 explains possible scans and SHARE UPDATE EXCLUSIVE locks. ML181 asks for
+catalog/data checks: the constraint must exist and be enforced; supported server
+kinds are FOREIGN KEY, CHECK and PostgreSQL 18 NOT NULL. Foreign-key validation
+also takes ROW SHARE locks on referenced tables. Already-valid constraints need
+no validation work. This tool does not query catalogs, prove data validity or
+infer descendant coverage from ONLY/`*`. Validation retains existing transaction
+and timeout behavior; lock_timeout is not a scan-duration budget.
+
+```mbt check
+///|
+test "review the deferred constraint validation phase" {
+  let report = @migration_lens.review_sql(
+    "BEGIN; SET LOCAL lock_timeout=100; ALTER TABLE public.events VALIDATE CONSTRAINT events_positive_id, VALIDATE CONSTRAINT events_account_fk; COMMIT;",
+    execution=SeparateStatements,
+    max_lock_timeout_ms=100,
+  )
+  assert_true(report.complete)
+  assert_eq(report.diagnostics.map(d => d.code), ["ML180", "ML181"])
+}
+```
+
+`moon run cmd/main -- fixtures/validate-constraints.sql separate --require-lock-timeout --json`
+reviews validation followed by concurrent index maintenance, without a database.
+Exit 1 contains ML180/ML181; `simple` additionally reports ML101 for REINDEX.
+Semantics follow [PostgreSQL 18 ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html).
 
 ## Development
 

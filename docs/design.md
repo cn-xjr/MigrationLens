@@ -90,6 +90,9 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
 * Materialized-view refresh: reader-blocking versus concurrent locks, catalog
   prerequisites, unscannable NO DATA state and incompatible-option rejection.
 
+* Existing-constraint validation: complete validation-only action lists,
+  scan/maintenance lock review, foreign-key reference locks and data caveats.
+
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only
 after preserving the existing rule contract. Full PostgreSQL parsing and

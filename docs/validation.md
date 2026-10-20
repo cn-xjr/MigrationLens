@@ -76,6 +76,22 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Constraint validation (October 16 stable toolchain): all 136 unit/documentation
+tests passed on Wasm, Wasm-GC, JavaScript and actual Linux native. Strict
+all-target compilation, formatting, script checks and interface regeneration
+passed with no public API changes. Full CLI suites passed on all four targets,
+including actual Linux native processes. All seven emitted SARIF samples passed
+the external OASIS 2.1.0 JSON schema.
+Tests cover validation-only action lists (1..32), quoted delimiters, scope
+markers, malformed/mixed actions, transaction and savepoint timeout preservation,
+unknown-state recovery, exact source spans, deterministic output and archive
+round trips. New PostgreSQL probes compile locally and check real rows, CHECK
+and NOT NULL validation flags, maintenance/reference lock modes, historical
+data violations and already-valid constraints. Database execution awaits this
+commit's remote CI; no local database or Windows native run is claimed.
+Refresh commit `df845b3` passed Linux/macOS/Windows and PostgreSQL 18 jobs in
+[run 39422467250](https://github.com/cn-xjr/MigrationLens/actions/runs/39422467250).
+
 Materialized-view refresh: 129 unit/documentation tests passed on all four
 targets with the October 16 toolchain; all portable CLI suites passed, and the
 documented refresh fixture ran through the Linux native CLI with expected exit
