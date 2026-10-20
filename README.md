@@ -364,6 +364,47 @@ path. Read/UTF-8/validation/export failures exit 2 with an actionable message.
 No database, original SQL file or new analysis is needed to render a saved
 report. Source embedded in the report is retained; sharing it exposes that SQL.
 
+## Compare a trusted baseline with the current report
+
+`compare_reports(baseline, current)` returns `Result[ReportDelta, String]`.
+Both reports must be complete and structurally valid, even for library callers
+constructing reports directly. The caller must select the same logical artifact,
+rule version and review context/policies; version-1 reports do not record enough
+context to verify this automatically. A baseline is a trusted acceptance decision.
+
+Identity is the exact rule ID, severity, message, help and SQL text selected by
+the diagnostic's span. Position changes alone are ignored. No whitespace,
+identifier, comment or semantic normalization occurs. Duplicate occurrences are
+matched by count, in input order; an extra copy is new. Matching spans may be
+relocated between revisions, so this does not establish statement identity or
+preserve its surrounding context. Review source changes alongside the delta.
+
+`ReportDelta` retains both complete original reports (with independent diagnostic
+array snapshots), ordered `introduced`/`resolved` findings and a `retained` count.
+Spans refer to current source for introduced findings and baseline source for
+resolved findings. Version-1 `to_json` includes both full reports; `to_text`
+shows the delta. No findings disappear from the retained source reports.
+Its baseline gate exits 1 for any introduced finding, otherwise 0. Existing
+errors can therefore remain in a delta that exits 0; use the current report's
+own `exit_code` for an absolute gate. Incomplete/invalid inputs fail comparison
+and the CLI exits 2, never a passing partial result. Delta JSON is its own
+output contract, not a single report accepted by `Report::parse_json`.
+
+```text
+moon run scripts/e2e.mbtx wasm
+moon run cmd/compare -- _build/comparison-0.json _build/comparison-1.json --json
+moon run cmd/compare -- _build/comparison-1.json _build/comparison-1.json
+moon run cmd/compare -- _build/comparison-1.json _build/comparison-0.json --json
+```
+
+These render an added ordinary DROP INDEX (exit 1), the accepted same findings
+(exit 0), and resolved findings (exit 0). The script creates both reports from
+the same real migration-runner fixture under separate dispatch; its current
+revision appends an authored `DROP INDEX obsolete_index;` review example.
+Neither SQL nor reports require a database or a hosted CI account. This workflow
+does not automatically create/update a baseline, suppress the current report,
+compare batch manifests or perform SQL rewriting.
+
 ## SARIF reports for code scanning
 
 `Report::to_sarif(artifact_path)` returns `Result[Json, String]` containing

@@ -76,6 +76,20 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Baseline comparisons check duplicate-count conservation in both directions,
+stable source order, position-only movement, exact SQL/metadata changes,
+invalid UTF-16 spans/Unicode, inconsistent and incomplete reports, deterministic
+JSON, retained sources and snapshots independent of input array mutation.
+The CLI suite compares a real upstream fixture against an authored added DROP
+INDEX, retains existing findings, resolves removed findings and rejects malformed,
+missing, non-UTF-8 and incomplete report inputs. Existing SARIF errors and output
+are preserved while report validation is shared with the new library workflow.
+This capability passed 81 unit/documentation tests on each of Wasm, Wasm-GC,
+JavaScript and Linux native, with strict all-target compilation and format/API
+checks on the October 16 toolchain. Full CLI suites passed on all four targets,
+including actual native process execution. All six SARIF samples passed the
+external official schema. No new remote CI run is claimed before a push.
+
 Table-lock regressions cover all eight modes, default ACCESS EXCLUSIVE, relation
 lists, ONLY/star markers, quoted Unicode names, UTF-16 spans, deterministic
 reports, JSON restoration, SARIF export, invalid clauses and downstream unknown

@@ -138,3 +138,9 @@ The implicit-block distinction was also checked against PostgreSQL REL_18_STABLE
 These resources retain the PostgreSQL License; no source, documentation prose
 or upstream SQL example is copied. The parser, diagnostics, tests, database
 probes and `fixtures/table-locks.sql` are authored under Apache-2.0.
+
+The baseline comparison contract, implementation, CLI and tests are authored
+under Apache-2.0; no upstream comparison algorithm or fingerprint implementation
+is copied. Keys are exact ordered JSON tuples using MoonBit core, not SARIF
+fingerprints. End-to-end input extends the attributed postgres-migrations
+fixture with an authored ordinary DROP INDEX statement for offline review.

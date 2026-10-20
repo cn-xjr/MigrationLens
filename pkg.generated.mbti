@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn compare_reports(Report, Report) -> Result[ReportDelta, String]
+
 pub fn review_migrations(ArrayView[Migration], initial_lock_timeout_ms? : Int32) -> BatchReport
 
 pub fn review_sql(String, execution~ : Execution, initial_transaction? : Bool, require_lock_timeout? : Bool, max_lock_timeout_ms? : Int32, initial_lock_timeout_ms? : Int32) -> Report
@@ -74,6 +76,17 @@ pub fn Report::to_json(Self) -> Json
 pub fn Report::to_repr(Self) -> @debug.Repr
 pub fn Report::to_sarif(Self, String) -> Result[Json, String]
 pub fn Report::to_text(Self) -> String
+
+pub struct ReportDelta {
+  baseline : Report
+  current : Report
+  introduced : Array[Diagnostic]
+  resolved : Array[Diagnostic]
+  retained : Int32
+}
+pub fn ReportDelta::exit_code(Self) -> Int32
+pub fn ReportDelta::to_json(Self) -> Json
+pub fn ReportDelta::to_text(Self) -> String
 
 pub(all) enum Severity {
   Error

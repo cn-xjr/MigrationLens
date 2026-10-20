@@ -117,34 +117,15 @@ pub fn Report::to_sarif(
     Ok(uri) => uri
     Err(e) => return Err(e)
   }
-  if !valid_unicode(self.source) {
-    return Err("SARIF source contains an unpaired UTF-16 surrogate")
-  }
-  if self.statements < 0 {
-    return Err("SARIF report has a negative statement count")
+  match validate_report(self, "SARIF") {
+    Ok(_) => ()
+    Err(e) => return Err(e)
   }
   let lines = sarif_lines(self.source)
   let rules : Array[Json] = []
   let codes : Map[String, Int32] = Map([])
   let results : Array[Json] = []
-  for i, d in self.diagnostics {
-    if self.complete && d.severity == Incomplete {
-      return Err("SARIF complete report contains an incomplete diagnostic")
-    }
-    if d.code.is_empty() ||
-      d.message.is_empty() ||
-      !valid_unicode(d.code) ||
-      !valid_unicode(d.message) ||
-      !valid_unicode(d.help) {
-      return Err(
-        "SARIF diagnostic \{i} has empty code/message or invalid Unicode",
-      )
-    }
-    if d.span.end < d.span.start ||
-      !source_boundary(self.source, d.span.start) ||
-      !source_boundary(self.source, d.span.end) {
-      return Err("SARIF diagnostic \{i} has an invalid source span")
-    }
+  for d in self.diagnostics {
     let rule_index = match codes.get(d.code) {
       Some(index) => index
       None => {

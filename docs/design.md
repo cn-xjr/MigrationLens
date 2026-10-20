@@ -69,6 +69,8 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   preserving all fields, then offline text/JSON/SARIF rendering and exit codes.
 * Explicit table locks: closed relation-list grammar, eight lock modes, active
   block requirements, NOWAIT-aware timeout policy and mode-specific impact.
+* Trusted report baselines: exact multiset comparison with duplicate conservation,
+  retained source reports, strict completeness and an explicit new-findings gate.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only

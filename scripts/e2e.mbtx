@@ -73,6 +73,7 @@ async fn main {
     let again = @shell.Cmd(moon, args).output(timeout_ms=60000)
     assert_eq(again.stdout(), output.stdout(), msg="deterministic report")
     if file == "fixtures/postgres-migrations-concurrent.sql" ||
+      file == "fixtures/postgres-migrations-no-transaction.sql" ||
       file == "fixtures/river-006-bulk-unique.sql" {
       let saved = "_build/saved-report-\{expected}.json"
       @fs.write_file(saved, output.stdout())
@@ -111,6 +112,82 @@ async fn main {
         }
       }
     }
+  }
+  @fs.write_file(
+    "_build/comparison-0.json",
+    @fs.read_file("_build/saved-report-0.json").text(),
+  )
+  @fs.write_file(
+    "_build/comparison-current.sql",
+    @fs.read_file("fixtures/postgres-migrations-concurrent.sql").text() +
+    "\nDROP INDEX obsolete_index;\n",
+  )
+  let changed = @shell.Cmd(moon, [
+    "run", "--target", target, "cmd/main", "--", "_build/comparison-current.sql",
+    "separate", "--json",
+  ]).output(timeout_ms=60000)
+  assert_eq(changed.exit_code(), 1)
+  @fs.write_file("_build/comparison-1.json", changed.stdout())
+  @fs.write_file("_build/invalid-comparison.json", "{}")
+  @fs.write_file("_build/invalid-comparison-utf8.json", b"\xff")
+  for
+    (before, after, expected, retained) in [
+      (0, 1, 1, 0),
+      (1, 0, 0, 0),
+      (1, 1, 0, 1),
+    ] {
+    for format in ["text", "json"] {
+      let args = [
+        "run",
+        "--target",
+        target,
+        "cmd/compare",
+        "--",
+        "_build/comparison-\{before}.json",
+        "_build/comparison-\{after}.json",
+      ]
+      if format == "json" {
+        args.push("--json")
+      }
+      let output = @shell.Cmd(moon, args).output(timeout_ms=60000)
+      assert_eq(output.exit_code(), expected)
+      if format == "json" {
+        guard @json.parse(output.stdout())
+          is {
+            "retained": count,
+            "baseline": { "source": _, .. },
+            "current": { "source": _, .. },
+            ..
+          } else {
+          fail("delta lost sources")
+        }
+        assert_eq(count, Json(retained))
+        assert_eq(
+          @shell.Cmd(moon, args).output(timeout_ms=60000).stdout(),
+          output.stdout(),
+        )
+      } else {
+        assert_true(output.stdout().contains("MigrationLens delta:"))
+      }
+    }
+  }
+  for
+    invalid_args in [
+      [],
+      ["_build/missing-report.json", "_build/saved-report-0.json"],
+      ["_build/invalid-comparison.json", "_build/saved-report-0.json"],
+      ["_build/saved-report-0.json", "_build/invalid-comparison-utf8.json"],
+      ["_build/saved-report-2.json", "_build/saved-report-0.json"],
+      ["_build/saved-report-0.json", "_build/saved-report-2.json"],
+      ["_build/saved-report-0.json", "_build/saved-report-0.json", "--bogus"],
+    ] {
+    let args = ["run", "--target", target, "cmd/compare", "--"]
+    for arg in invalid_args {
+      args.push(arg)
+    }
+    let output = @shell.Cmd(moon, args).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), 2)
+    assert_true(output.stdout().contains("Cannot compare reports:"))
   }
   for (value, expected) in [("100", 0), ("0", 1)] {
     let output = @shell.Cmd(moon, [
