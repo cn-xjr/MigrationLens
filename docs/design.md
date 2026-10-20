@@ -67,6 +67,8 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   updates, unknown external rollback baselines and audited common batch defaults.
 * Saved review artifacts: strict typed restoration of version-1 single reports,
   preserving all fields, then offline text/JSON/SARIF rendering and exit codes.
+* Explicit table locks: closed relation-list grammar, eight lock modes, active
+  block requirements, NOWAIT-aware timeout policy and mode-specific impact.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only

@@ -76,6 +76,27 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Table-lock regressions cover all eight modes, default ACCESS EXCLUSIVE, relation
+lists, ONLY/star markers, quoted Unicode names, UTF-16 spans, deterministic
+reports, JSON restoration, SARIF export, invalid clauses and downstream unknown
+state. They distinguish idle, existing, explicit, unknown and multi-statement
+simple-query blocks, including implicit segments after COMMIT. Timeout checks
+cover known/unknown/disabled/excessive values, savepoint restoration and NOWAIT
+without bypassing later index checks. The authored `fixtures/table-locks.sql`
+workflow runs in the CLI suite under separate and simple dispatch.
+
+The PostgreSQL oracle now checks actual held modes through pg_locks, idle LOCK
+SQLSTATE 25P01, implicit blocks and relation lists/markers. These added database
+cases have not been executed locally or in remote CI. Script compilation is
+reported separately; no live contention, deadlock or privilege test is claimed.
+Final local follow-up validation passed 75 unit/documentation tests on each of
+Wasm, Wasm-GC, JavaScript and Linux native with the October 16 toolchain. The full
+single-file/batch/saved-report CLI suite passed on all four targets, including
+actual native process execution. Formatting, interface regeneration and strict
+all-target compilation passed. All six generated SARIF examples, including the
+restored artifact, passed the external official schema. This is local evidence;
+no new remote CI run or Windows native execution is claimed.
+
 Saved-report tests check typed and canonical JSON round trips, including Unicode,
 CRLF, NUL and oversized SQL already represented by an incomplete report. They
 reject duplicate decoded keys, unknown fields/versions, non-integral/overflowing

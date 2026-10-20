@@ -69,6 +69,48 @@ reviews a complete concurrent create/drop/rename workflow and exits 1 for ML110.
 Sending the whole file with `simple` additionally reports concurrent transaction
 conflicts. This is an authored review example; it does not execute SQL.
 
+Explicit table-lock statements support `LOCK [TABLE] [ONLY] name [*] [, ...]`
+with an optional `IN mode MODE` and `NOWAIT`. Names may be quoted or schema
+qualified. All eight PostgreSQL table-lock modes are recognized; omitted mode
+means ACCESS EXCLUSIVE. ML120 reports the requested mode's impact: ACCESS
+EXCLUSIVE can block ordinary reads and writes; SHARE, SHARE ROW EXCLUSIVE and
+EXCLUSIVE can block ordinary writes; weaker modes still conflict with some
+maintenance/schema operations. These are table-level locks even when named ROW.
+
+ML121 is an error outside an active transaction block, or incomplete when that
+context is unknown. A multi-statement simple-query message supplies an implicit
+block, including its segment after COMMIT; a single idle LOCK does not. A known
+invalid idle LOCK taints subsequent context rather than predicting execution
+after an error. The timeout policy applies to waiting LOCK statements. NOWAIT
+skips that statement's acquisition-timeout check, retains ML120, and does not
+affect timeout checks on later statements. It rejects conflicting acquisition
+immediately; it does not shorten how long acquired locks are held.
+
+```mbt check
+///|
+test "review an explicit lock before an ordinary index" {
+  let report = @migration_lens.review_sql(
+    "BEGIN; SET LOCAL lock_timeout=100; LOCK TABLE events IN SHARE MODE NOWAIT; CREATE INDEX a ON events(id); COMMIT;",
+    execution=SeparateStatements,
+    max_lock_timeout_ms=100,
+  )
+  assert_true(report.complete)
+  assert_eq(report.diagnostics[0].code, "ML120")
+  assert_eq(report.diagnostics[1].code, "ML100")
+}
+```
+
+`moon run cmd/main -- fixtures/table-locks.sql separate --json` reviews an authored
+index-maintenance workflow and exits 1 for ML120/ML100. Use
+`--require-lock-timeout` to also report ML202 on its final concurrent index:
+the transaction-local timeout has expired at COMMIT. Lock acquisition order,
+descendants, view expansion, relation kind, privileges and workload still need
+manual review. Acquired locks normally last until transaction end; rollback to
+an earlier savepoint can release them. No lock inventory or deadlock simulation
+is performed. Catalog-qualified names and `ONLY (name)` remain incomplete,
+along with unsupported trailing clauses. Semantics follow [PostgreSQL 18 LOCK](https://www.postgresql.org/docs/18/sql-lock.html)
+and [table-level locking](https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-TABLES).
+
 ```mbt check
 ///|
 test "review an index migration" {
@@ -285,7 +327,9 @@ single-report JSON contract. It preserves the SQL, statement count, completion
 flag and every diagnostic in order. Unknown/missing fields, duplicate decoded
 keys, unsupported versions, invalid types/Unicode, out-of-range UTF-16 spans,
 surrogate-splitting offsets and contradictory completion are rejected with a
-diagnostic path. Batch envelopes are not accepted. This validates the stored
+diagnostic path. Numeric fields require plain nonnegative decimal integer tokens;
+fractions, exponents and negative zero are rejected before floating-point
+rounding. Batch envelopes are not accepted. This validates the stored
 structure; it does not rescan SQL or certify the report's original conclusions.
 
 ```mbt check

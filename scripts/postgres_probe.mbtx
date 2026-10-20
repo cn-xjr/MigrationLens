@@ -265,8 +265,44 @@ async fn main {
     ],
   )
   assert_eq(external_rollback.stdout().trim().to_owned(), "2s")
+  for
+    (mode, held) in [
+      ("ACCESS SHARE", "AccessShareLock"),
+      ("ROW SHARE", "RowShareLock"),
+      ("ROW EXCLUSIVE", "RowExclusiveLock"),
+      ("SHARE UPDATE EXCLUSIVE", "ShareUpdateExclusiveLock"),
+      ("SHARE", "ShareLock"),
+      ("SHARE ROW EXCLUSIVE", "ShareRowExclusiveLock"),
+      ("EXCLUSIVE", "ExclusiveLock"),
+      ("ACCESS EXCLUSIVE", "AccessExclusiveLock"),
+    ] {
+    let acquired = successful("explicit table lock \{mode}", [
+      "BEGIN",
+      "LOCK TABLE migrationlens_probe IN \{mode} MODE NOWAIT",
+      "SELECT mode FROM pg_locks WHERE pid=pg_backend_pid() AND locktype='relation' AND relation='migrationlens_probe'::regclass AND granted",
+      "COMMIT",
+    ])
+    assert_eq(acquired.stdout().trim().to_owned(), held)
+  }
+  rejected(
+    "idle LOCK requires a transaction block",
+    ["LOCK TABLE migrationlens_probe"],
+    "25P01",
+  )
+  let _ = successful("implicit block accepts LOCK", [
+    "SET lock_timeout=100; LOCK TABLE migrationlens_probe IN SHARE MODE NOWAIT",
+  ])
+  let _ = successful("implicit segment after COMMIT accepts LOCK", [
+    "BEGIN; COMMIT; LOCK TABLE migrationlens_probe IN SHARE MODE NOWAIT",
+  ])
+  let _ = successful("LOCK relation list and inheritance markers", [
+    "BEGIN", "LOCK TABLE ONLY public.migrationlens_probe, public.migrationlens_probe* IN ROW SHARE MODE NOWAIT",
+    "COMMIT",
+  ])
   let _ = successful("remove disposable probe table", [
     "DROP TABLE migrationlens_probe",
   ])
-  println("PostgreSQL 18 transaction and timeout execution probes passed")
+  println(
+    "PostgreSQL 18 transaction, timeout and table-lock execution probes passed",
+  )
 }

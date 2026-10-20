@@ -3,6 +3,7 @@ priv enum Command {
   Index(Bool)
   Reindex(Bool, Bool)
   RenameIndex
+  LockTable(LockMode, Bool)
   InvalidIndex(String)
   Begin
   Finish(rollback~ : Bool, chain~ : Bool)
@@ -89,6 +90,7 @@ fn classify(fragment : Fragment) -> Command {
       }
     }
     ["REINDEX", ..] => classify_reindex(fragment.words[:])
+    ["LOCK", ..] => classify_lock(fragment.words[:])
     ["CREATE", ..] => {
       let mut depth = 0
       for word in fragment.words {
@@ -117,8 +119,8 @@ fn classify(fragment : Fragment) -> Command {
 }
 
 ///|
-/// Analyze PostgreSQL 18 index statements and transaction control. The caller
-/// must describe dispatch; comments never override the explicit execution mode.
+/// Analyze PostgreSQL 18 index statements, table locks and transaction control.
+/// The caller must describe dispatch; comments never override the execution mode.
 /// A positive max_lock_timeout_ms also enables timeout checking. Invalid limits
 /// yield ML011 and an incomplete report without analyzing statements.
 /// initial_lock_timeout_ms is a caller-assured session value with no unmodeled
@@ -281,6 +283,50 @@ pub fn review_sql(
         )
         timeouts.taint()
         tx = Uncertain
+      }
+      LockTable(mode, nowait) => {
+        if tx == Idle || tx == Uncertain {
+          let uncertain = tx == Uncertain
+          diagnostics.push(
+            finding(
+              "ML121",
+              if uncertain {
+                Incomplete
+              } else {
+                Error
+              },
+              fragment.span,
+              if uncertain {
+                "Cannot establish transaction context for LOCK TABLE"
+              } else {
+                "LOCK TABLE requires an active transaction block"
+              },
+              "Begin a transaction, declare an existing transaction, or send a multi-statement simple-query message; a separately dispatched idle LOCK fails.",
+            ),
+          )
+          if uncertain {
+            complete = false
+          }
+          timeouts.taint()
+          tx = Uncertain
+        } else if !nowait &&
+          (require_lock_timeout || max_lock_timeout_ms is Some(_)) {
+          timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)
+        }
+        diagnostics.push(
+          finding(
+            "ML120",
+            Warning,
+            fragment.span,
+            "LOCK TABLE requests \{mode.name()}: \{mode.impact()}",
+            (if nowait {
+              "NOWAIT rejects conflicting table-lock acquisition immediately; it does not shorten lock lifetime. "
+            } else {
+              "Review lock acquisition waits and acquisition order. "
+            }) +
+            "Acquired locks are normally held until transaction end; rollback to an earlier savepoint can release them. Check descendant/view expansion, privileges and workload manually.",
+          ),
+        )
       }
       RenameIndex => {
         if require_lock_timeout || max_lock_timeout_ms is Some(_) {

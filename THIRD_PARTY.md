@@ -126,3 +126,15 @@ The version-1 saved-report decoder, offline renderer and regression tests are
 authored under Apache-2.0. They consume this project's existing JSON contract,
 using MoonBit core JSON's strict duplicate-key parser; no external decoder or
 report schema is copied. End-to-end inputs reuse the attributed fixtures above.
+
+Table-lock grammar and lock conflicts follow PostgreSQL 18 LOCK and explicit
+locking documentation (PostgreSQL License):
+<https://www.postgresql.org/docs/18/sql-lock.html> and
+<https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-TABLES>.
+The implicit-block distinction was also checked against PostgreSQL REL_18_STABLE
+`src/backend/tcop/utility.c` (`T_LockStmt`) and
+`src/backend/access/transam/xact.c` (`CheckTransactionBlock`, `IsTransactionBlock`):
+<https://github.com/postgres/postgres/tree/REL_18_STABLE/src/backend>.
+These resources retain the PostgreSQL License; no source, documentation prose
+or upstream SQL example is copied. The parser, diagnostics, tests, database
+probes and `fixtures/table-locks.sql` are authored under Apache-2.0.
