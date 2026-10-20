@@ -14,6 +14,7 @@ async fn main {
   guard ["wasm", "wasm-gc", "js", "native"].contains(target) else {
     fail("invalid target")
   }
+  @fs.mkdir("_build", allow_exist=true)
   let cases : Array[(String, String, Bool, Int32)] = [
     ("fixtures/postgres-migrations-concurrent.sql", "separate", false, 0),
     ("fixtures/postgres-migrations-no-transaction.sql", "transaction", false, 1),
@@ -61,8 +62,46 @@ async fn main {
     assert_eq(@json.parse(data.stringify()), data)
     let again = @shell.Cmd(moon, args).output(timeout_ms=60000)
     assert_eq(again.stdout(), output.stdout(), msg="deterministic report")
+    if file == "fixtures/postgres-migrations-concurrent.sql" ||
+      file == "fixtures/river-006-bulk-unique.sql" {
+      let saved = "_build/saved-report-\{expected}.json"
+      @fs.write_file(saved, output.stdout())
+      for format in ["json", "text", "sarif"] {
+        let render_args = [
+          "run", "--target", target, "cmd/report", "--", saved, format,
+        ]
+        if format == "sarif" {
+          render_args.push(file)
+        }
+        let restored = @shell.Cmd(moon, render_args).output(timeout_ms=60000)
+        assert_eq(restored.exit_code(), expected)
+        if format == "json" {
+          assert_eq(
+            restored.stdout(),
+            output.stdout(),
+            msg="typed JSON round trip",
+          )
+        } else if format == "sarif" {
+          guard @json.parse(restored.stdout())
+            is {
+              "runs": [
+                {
+                  "artifacts": [{ "contents": { "text": source, .. }, .. }],
+                  ..
+                },
+              ],
+              ..
+            } else {
+            fail("restored SARIF lost its source")
+          }
+          assert_eq(source, Json(@fs.read_file(file).text()))
+          @fs.write_file("_build/sarif-restored.json", restored.stdout())
+        } else {
+          assert_true(restored.stdout().contains("MigrationLens:"))
+        }
+      }
+    }
   }
-  @fs.mkdir("_build", allow_exist=true)
   for (value, expected) in [("100", 0), ("0", 1)] {
     let output = @shell.Cmd(moon, [
       "run",
@@ -182,6 +221,31 @@ async fn main {
     assert_eq(output.exit_code(), 2)
   }
   @fs.write_file("_build/invalid-utf8.sql", b"\xff\xfe\x00")
+  @fs.write_file("_build/invalid-saved-report.json", "{\"format_version\":2}")
+  for
+    invalid_args in [
+      [],
+      ["_build/missing-report.json", "json"],
+      ["_build/invalid-utf8.sql", "text"],
+      ["_build/invalid-saved-report.json", "json"],
+      ["_build/saved-report-0.json", "sarif", "../bad.sql"],
+      ["_build/saved-report-0.json", "bogus"],
+      ["_build/saved-report-0.json", "sarif"],
+      ["_build/saved-report-0.json", "text", "extra"],
+    ] {
+    let args = ["run", "--target", target, "cmd/report", "--"]
+    for arg in invalid_args {
+      args.push(arg)
+    }
+    let output = @shell.Cmd(moon, args).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), 2)
+    assert_true(output.stdout().contains("Cannot load saved report:"))
+  }
+  let recovered = @shell.Cmd(moon, [
+    "run", "--target", target, "cmd/report", "--", "_build/saved-report-0.json",
+    "json",
+  ]).output(timeout_ms=60000)
+  assert_eq(recovered.exit_code(), 0)
   let invalid = @shell.Cmd(moon, [
     "run", "--target", target, "cmd/main", "--", "_build/invalid-utf8.sql", "separate",
   ]).output(timeout_ms=60000)

@@ -278,6 +278,48 @@ returns an actionable error and exit 2, without a partial batch report. SQL
 coverage failures instead remain per-file reports. This workflow does not
 execute SQL, upload reports or require database infrastructure.
 
+## Restore and render saved reports offline
+
+`Report::parse_json(text)` returns `Result[Report, String]` for the version-1
+single-report JSON contract. It preserves the SQL, statement count, completion
+flag and every diagnostic in order. Unknown/missing fields, duplicate decoded
+keys, unsupported versions, invalid types/Unicode, out-of-range UTF-16 spans,
+surrogate-splitting offsets and contradictory completion are rejected with a
+diagnostic path. Batch envelopes are not accepted. This validates the stored
+structure; it does not rescan SQL or certify the report's original conclusions.
+
+```mbt check
+///|
+test "restore a saved report without discarding findings" {
+  let original = @migration_lens.review_sql(
+    "DROP INDEX events_id_idx;",
+    execution=SeparateStatements,
+  )
+  let restored = @migration_lens.Report::parse_json(
+    original.to_json().stringify(),
+  ).unwrap()
+  assert_eq(restored, original)
+  assert_eq(restored.to_text(), original.to_text())
+}
+```
+
+The end-to-end script writes UTF-8 saved reports from the real migration-runner
+and River fixtures. From the repository root:
+
+```text
+moon run scripts/e2e.mbtx wasm
+moon run cmd/report -- _build/saved-report-2.json text
+moon run cmd/report -- _build/saved-report-2.json sarif fixtures/river-006-bulk-unique.sql
+moon run cmd/report -- _build/saved-report-0.json json
+```
+
+The first two render commands retain the incomplete review's exit code 2; the
+last exits 0 and reproduces the canonical single-report JSON. Formats are
+`text`, `json` or `sarif`; only SARIF requires a repository-relative SQL artifact
+path. Read/UTF-8/validation/export failures exit 2 with an actionable message.
+No database, original SQL file or new analysis is needed to render a saved
+report. Source embedded in the report is retained; sharing it exposes that SQL.
+
 ## SARIF reports for code scanning
 
 `Report::to_sarif(artifact_path)` returns `Result[Json, String]` containing

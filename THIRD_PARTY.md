@@ -121,3 +121,8 @@ semantics and lock_timeout reference:
 The context API, tests and `fixtures/review-session-manifest.json` are authored
 under Apache-2.0. No live connection is queried and no external implementation
 or fixture was copied for this capability.
+
+The version-1 saved-report decoder, offline renderer and regression tests are
+authored under Apache-2.0. They consume this project's existing JSON contract,
+using MoonBit core JSON's strict duplicate-key parser; no external decoder or
+report schema is copied. End-to-end inputs reuse the attributed fixtures above.

@@ -3,8 +3,5 @@ import {
   "moonbitlang/core/debug",
   "moonbitlang/core/string",
   "moonbitlang/core/encoding/utf8",
-}
-
-import {
   "moonbitlang/core/json",
-} for "test"
+}

@@ -65,6 +65,8 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   combinations rejected instead of silently selecting precedence.
 * Connection entry facts: caller-assured initial session timeout, scope-aware
   updates, unknown external rollback baselines and audited common batch defaults.
+* Saved review artifacts: strict typed restoration of version-1 single reports,
+  preserving all fields, then offline text/JSON/SARIF rendering and exit codes.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only

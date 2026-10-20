@@ -76,6 +76,20 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Saved-report tests check typed and canonical JSON round trips, including Unicode,
+CRLF, NUL and oversized SQL already represented by an incomplete report. They
+reject duplicate decoded keys, unknown fields/versions, non-integral/overflowing
+counts, invalid Unicode, malformed metadata and invalid UTF-16 spans. CLI checks
+save real upstream fixture reports, render all three formats with their original
+exit codes, reject malformed files/arguments and then successfully load a valid
+report. `_build/sarif-restored.json` is available for external schema validation.
+This validates artifact structure and preservation, not the truth of findings.
+On the October 16 toolchain, all 68 unit/documentation tests and the CLI suite
+passed on Wasm, Wasm-GC, JavaScript and actual Linux native execution. Strict
+all-target compilation and format/interface checks passed. The restored SARIF
+sample passed the external official schema using the jsonschema CLI. No new
+remote CI run is claimed before a push.
+
 Initial-session timeout regressions cover unknown/zero/positive/maximum/negative
 values, policy opt-in, reset-to-unknown, rollback/commit/savepoint/chain behavior,
 unknown SQL/dispatch, external rollback baselines, independent batch initialization
