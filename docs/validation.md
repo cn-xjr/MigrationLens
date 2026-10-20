@@ -76,6 +76,23 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+VACUUM tests cover separate/simple/explicit/external/unknown transaction state,
+all 16 legacy-option subsets, effective FULL/TRUNCATE/INDEX_CLEANUP settings,
+SKIP_LOCKED timeout limits, database-wide scope, 1..16 target lists, unsupported
+options, malformed input, recovery, UTF-16 spans, deterministic JSON and typed
+single/batch archive round trips. READ ONLY diagnostic wording was corrected:
+DDL restrictions are not limited to non-temporary relations. All 117 unit and
+documentation tests passed on Wasm, Wasm-GC, JavaScript and actual Linux native
+with October 16. Full CLI suites passed on all four targets, including native
+process execution. Formatting, strict all-target and script checks, generated
+interfaces and all seven external SARIF schema samples passed. The public API
+is unchanged; new SQL warnings are visible through the existing report types.
+New VACUUM PostgreSQL probes are compiled locally; database execution remains
+pending this commit's remote CI. No local database or Windows native run is
+claimed. The previous ANALYZE commit `41a9df5` passed all four jobs in
+[Actions run 39398733522](https://github.com/cn-xjr/MigrationLens/actions/runs/39398733522),
+including the actual ANALYZE column/lock probes against PostgreSQL 18.
+
 ANALYZE tests cover relation/column lists, ONLY/inheritance markers, quoted
 names, boolean spellings, database-wide scope, SKIP_LOCKED with timeout checks,
 scoped/savepoint state, malformed/unknown clauses, recovery, source spans,

@@ -175,3 +175,12 @@ locking documentation (PostgreSQL License):
 <https://www.postgresql.org/docs/18/sql-analyze.html> and
 <https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-TABLES>.
 No upstream implementation or documentation text was copied.
+
+VACUUM option/target validation, contextual diagnostics, tests, probes and
+`fixtures/vacuum.sql` are authored under Apache-2.0. PostgreSQL 18 VACUUM and
+table-level locking documentation (PostgreSQL License) define the behavior:
+<https://www.postgresql.org/docs/18/sql-vacuum.html> and
+<https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-TABLES>.
+No upstream implementation or documentation text was copied. The READ ONLY
+wording also follows SET TRANSACTION: DDL restrictions are not limited to
+non-temporary relations.

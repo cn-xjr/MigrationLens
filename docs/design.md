@@ -81,6 +81,8 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   transitions, and explicit read-only/safe-snapshot limitations.
 * Post-index statistics: bounded ANALYZE option/target grammar, maintenance-lock
   and database-wide scope findings, with SKIP_LOCKED-aware limitations.
+* Standalone vacuum workflows: transaction-block rejection, FULL versus ordinary
+  lock/rewrite impact, truncation/cleanup caveats and targeted maintenance input.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only

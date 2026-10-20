@@ -1,6 +1,7 @@
 ///|
 // Return the token following a complete option list and each explicit setting.
-// This subset accepts only the declared boolean names, never discarded options.
+// Accept declared boolean names or INDEX_CLEANUP's AUTO/ON/OFF. For that option,
+// true means "not explicitly OFF", never proof that cleanup will occur.
 fn maintenance_options(
   words : ArrayView[String],
   allowed : ArrayView[String],
@@ -16,17 +17,31 @@ fn maintenance_options(
       return None
     }
     i += 1
-    let enabled = match words.get(i) {
-      Some("TRUE" | "ON" | "1") => {
-        i += 1
-        true
+    let enabled = if option == "INDEX_CLEANUP" {
+      match words.get(i) {
+        Some("AUTO" | "ON") => {
+          i += 1
+          true
+        }
+        Some("OFF") => {
+          i += 1
+          false
+        }
+        _ => return None
       }
-      Some("FALSE" | "OFF" | "0") => {
-        i += 1
-        false
+    } else {
+      match words.get(i) {
+        Some("TRUE" | "ON" | "1") => {
+          i += 1
+          true
+        }
+        Some("FALSE" | "OFF" | "0") => {
+          i += 1
+          false
+        }
+        Some("," | ")") => true
+        _ => return None
       }
-      Some("," | ")") => true
-      _ => return None
     }
     values[option] = enabled
     match words.get(i) {

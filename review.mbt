@@ -6,6 +6,13 @@ priv enum Command {
   MoveIndex
   LockTable(LockMode, Bool)
   Analyze(skip_locked~ : Bool, database_wide~ : Bool)
+  Vacuum(
+    full~ : Bool,
+    skip_locked~ : Bool,
+    truncate~ : Bool,
+    cleanup_off~ : Bool,
+    database_wide~ : Bool
+  )
   InvalidIndex(String)
   Begin(read_only~ : Bool, deferrable~ : Bool)
   Finish(rollback~ : Bool, chain~ : Bool)
@@ -85,6 +92,7 @@ fn classify(fragment : Fragment) -> Command {
     ["REINDEX", ..] => classify_reindex(fragment.words[:])
     ["LOCK", ..] => classify_lock(fragment.words[:])
     ["ANALYZE", ..] => classify_analyze(fragment.words[:])
+    ["VACUUM", ..] => classify_vacuum(fragment.words[:])
     ["CREATE", ..] => {
       let mut depth = 0
       for word in fragment.words {
@@ -113,7 +121,7 @@ fn classify(fragment : Fragment) -> Command {
 }
 
 ///|
-/// Analyze PostgreSQL 18 index statements, table locks and transaction control.
+/// Analyze PostgreSQL 18 index statements, maintenance, locks and transactions.
 /// The caller must describe dispatch; comments never override the execution mode.
 /// A positive max_lock_timeout_ms also enables timeout checking. Invalid limits
 /// yield ML011 and an incomplete report without analyzing statements.
@@ -201,8 +209,8 @@ pub fn review_sql(
               "ML130",
               Warning,
               fragment.span,
-              "READ ONLY restricts changes to non-temporary relations",
-              "Review CREATE/DROP/ALTER/REINDEX against the relation kind. This review does not infer temporary relations or enforce read-only permissions; nested BEGIN does not change existing transaction characteristics.",
+              "READ ONLY restricts DDL and writes",
+              "Review DDL permissions and transaction characteristics. This review does not enforce read-only restrictions; nested BEGIN does not change existing transaction characteristics.",
             ),
           )
         }
@@ -344,6 +352,92 @@ pub fn review_sql(
             "Acquired locks are normally held until transaction end; rollback to an earlier savepoint can release them. Check descendant/view expansion, privileges and workload manually.",
           ),
         )
+      }
+      Vacuum(full~, skip_locked~, truncate~, cleanup_off~, database_wide~) => {
+        if require_lock_timeout || max_lock_timeout_ms is Some(_) {
+          timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)
+        }
+        if tx != Idle {
+          let uncertain = tx == Uncertain
+          diagnostics.push(
+            finding(
+              "ML151",
+              if uncertain {
+                Incomplete
+              } else {
+                Error
+              },
+              fragment.span,
+              if uncertain {
+                "Cannot establish transaction context for VACUUM"
+              } else {
+                "VACUUM cannot run in a transaction block"
+              },
+              "Dispatch VACUUM separately outside caller or explicit transactions; multi-statement simple-query messages also form transaction blocks. Resolve coverage before assuming later SQL executes.",
+            ),
+          )
+          if uncertain {
+            complete = false
+          }
+          timeouts.taint()
+          tx = Uncertain
+        }
+        diagnostics.push(
+          finding(
+            "ML150",
+            Warning,
+            fragment.span,
+            if full {
+              "VACUUM FULL rewrites the table and requires ACCESS EXCLUSIVE locks"
+            } else {
+              "VACUUM performs ordinary maintenance with SHARE UPDATE EXCLUSIVE locks"
+            },
+            (if full {
+              "Plan for blocked reads/writes, rewrite duration and temporary extra disk space. "
+            } else {
+              "Review contention with concurrent maintenance/schema changes and tuple/index processing work. "
+            }) +
+            (if skip_locked {
+              "SKIP_LOCKED can omit busy relations and still wait on indexes or sample rows. "
+            } else {
+              ""
+            }) +
+            "lock_timeout bounds individual lock waits, not total maintenance duration. Relation kinds, privileges, workload and reclaimed space are not inferred.",
+          ),
+        )
+        if !full && truncate {
+          diagnostics.push(
+            finding(
+              "ML152",
+              Warning,
+              fragment.span,
+              "Ordinary VACUUM may request ACCESS EXCLUSIVE for tail-page truncation",
+              "TRUNCATE FALSE avoids this truncation lock; omitted TRUNCATE depends on server/table settings. This does not remove other maintenance waits or guarantee returned disk space.",
+            ),
+          )
+        }
+        if !full && cleanup_off {
+          diagnostics.push(
+            finding(
+              "ML153",
+              Warning,
+              fragment.span,
+              "INDEX_CLEANUP OFF skips normal index vacuuming",
+              "Budget follow-up index cleanup and monitor dead tuples/bloat. AUTO/ON still do not guarantee cleanup: catalog facts and the wraparound failsafe can change actual work.",
+            ),
+          )
+        }
+        if database_wide {
+          diagnostics.push(
+            finding(
+              "ML154",
+              Warning,
+              fragment.span,
+              "VACUUM without a relation list has database-wide scope",
+              "Name intended relations to bound maintenance work; actual processed relations depend on privileges and catalog state.",
+            ),
+          )
+        }
       }
       Analyze(skip_locked~, database_wide~) => {
         if require_lock_timeout || max_lock_timeout_ms is Some(_) {

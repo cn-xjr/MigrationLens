@@ -38,6 +38,8 @@ async fn main {
     ("fixtures/transaction-modes.sql", "simple", true, 1),
     ("fixtures/analyze.sql", "separate", true, 1),
     ("fixtures/analyze.sql", "simple", true, 1),
+    ("fixtures/vacuum.sql", "separate", true, 1),
+    ("fixtures/vacuum.sql", "simple", true, 1),
     ("fixtures/river-006-bulk-unique.sql", "separate", false, 2),
   ]
   for (file, mode, timeout, expected) in cases {
@@ -89,6 +91,14 @@ async fn main {
       assert_true(output.stdout().contains("may omit busy relations"))
       assert_true(!output.stdout().contains("ML003"))
       assert_true(!output.stdout().contains("ML202"))
+      assert_eq(output.stdout().contains("ML101"), mode == "simple")
+    }
+    if file == "fixtures/vacuum.sql" {
+      assert_true(output.stdout().contains("ML150"))
+      assert_true(!output.stdout().contains("ML003"))
+      assert_true(!output.stdout().contains("ML152"))
+      assert_true(!output.stdout().contains("ML153"))
+      assert_eq(output.stdout().contains("ML151"), mode == "simple")
       assert_eq(output.stdout().contains("ML101"), mode == "simple")
     }
     if file == "fixtures/river-006-bulk-unique.sql" {

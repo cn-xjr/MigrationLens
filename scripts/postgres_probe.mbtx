@@ -333,10 +333,38 @@ async fn main {
   let _ = successful("ANALYZE legacy verbose and relation list", [
     "ANALYZE VERBOSE public.migrationlens_probe (id), ONLY public.migrationlens_probe",
   ])
+  let _ = successful("VACUUM supported options and column targets", [
+    "VACUUM (ANALYZE TRUE, FULL FALSE, FREEZE ON, VERBOSE OFF, SKIP_LOCKED TRUE, INDEX_CLEANUP ON, TRUNCATE FALSE) ONLY public.migrationlens_probe (id)",
+  ])
+  let _ = successful("VACUUM FULL legacy options", [
+    "VACUUM FULL FREEZE VERBOSE ANALYZE public.migrationlens_probe (id)",
+  ])
+  let _ = successful("VACUUM disabled cleanup and automatic cleanup", [
+    "VACUUM (INDEX_CLEANUP OFF, TRUNCATE OFF) public.migrationlens_probe", "VACUUM (INDEX_CLEANUP AUTO, TRUNCATE 0) public.migrationlens_probe",
+  ])
+  rejected(
+    "VACUUM explicit transaction",
+    ["BEGIN READ WRITE", "VACUUM migrationlens_probe"],
+    "25001",
+  )
+  rejected(
+    "VACUUM implicit simple-query transaction",
+    ["SET lock_timeout=100; VACUUM migrationlens_probe"],
+    "25001",
+  )
+  rejected(
+    "VACUUM implicit segment after COMMIT",
+    ["BEGIN; COMMIT; VACUUM migrationlens_probe"],
+    "25001",
+  )
+  let _ = successful("separate VACUUM then concurrent index", [
+    "VACUUM (TRUNCATE FALSE) migrationlens_probe", "CREATE INDEX CONCURRENTLY ml_probe_postvac ON migrationlens_probe(id)",
+    "DROP INDEX CONCURRENTLY ml_probe_postvac",
+  ])
   let _ = successful("remove disposable probe table", [
     "DROP TABLE migrationlens_probe",
   ])
   println(
-    "PostgreSQL 18 transaction, timeout and table-lock execution probes passed",
+    "PostgreSQL 18 transaction, timeout, lock and maintenance execution probes passed",
   )
 }

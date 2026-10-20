@@ -12,7 +12,7 @@ READ, READ COMMITTED or READ UNCOMMITTED), READ ONLY/WRITE and [NOT] DEFERRABLE.
 Mode order may vary and commas between modes are optional. Repeated categories,
 malformed modes and unrecognized suffixes remain incomplete; precedence is not
 guessed. These starts preserve the same transaction, savepoint, timeout and
-dispatch rules as plain BEGIN. READ ONLY adds ML130 for catalog-dependent DDL
+dispatch rules as plain BEGIN. READ ONLY adds ML130 for DDL/write
 restrictions; DEFERRABLE adds ML131 for potential safe-snapshot waiting outside
 the lock_timeout budget. Defaults, read-only enforcement and snapshot scheduling
 are not inferred. Nested BEGIN still cannot change an existing transaction.
@@ -160,6 +160,52 @@ an earlier savepoint can release them. No lock inventory or deadlock simulation
 is performed. Catalog-qualified names and `ONLY (name)` remain incomplete,
 along with unsupported trailing clauses. Semantics follow [PostgreSQL 18 LOCK](https://www.postgresql.org/docs/18/sql-lock.html)
 and [table-level locking](https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-TABLES).
+
+## Standalone vacuum maintenance
+
+VACUUM covers the documented legacy keyword order FULL, FREEZE, VERBOSE, ANALYZE,
+and parenthesized FULL/FREEZE/VERBOSE/ANALYZE/SKIP_LOCKED/TRUNCATE booleans plus
+INDEX_CLEANUP AUTO/ON/OFF. Explicit false is honored; duplicate options and mixed
+legacy/parenthesized syntax remain incomplete. Relation lists support the same
+quoted/schema-qualified names and ONLY/inheritance markers as ANALYZE. Column
+lists require explicitly enabled ANALYZE: otherwise they are rejected rather
+than discarded. PARALLEL, BUFFER_USAGE_LIMIT, PROCESS_MAIN/TOAST, database-stats
+and other unlisted options are outside this subset.
+
+ML150 distinguishes ordinary SHARE UPDATE EXCLUSIVE maintenance from FULL's
+ACCESS EXCLUSIVE table rewrite and disk-space demand. ML152 warns that ordinary
+vacuum may also request ACCESS EXCLUSIVE for tail-page truncation unless
+TRUNCATE FALSE is explicit. ML153 flags INDEX_CLEANUP OFF for follow-up cleanup;
+FULL ignores both of those options. ML154 flags an omitted relation list's
+database-wide scope. AUTO/ON do not guarantee cleanup or reclaimed disk space.
+
+ML151 rejects explicit/caller/implicit transaction blocks, including a segment
+after COMMIT in a multi-statement simple-query message. Unknown context yields
+incomplete coverage. An invalid VACUUM taints later context rather than assuming
+SQL runs past a server error. A single idle simple-query VACUUM is allowed by
+this rule set. SKIP_LOCKED retains timeout checks because other waits remain;
+lock_timeout does not bound total maintenance duration.
+
+```mbt check
+///|
+test "review a standalone bounded-wait maintenance operation" {
+  let report = @migration_lens.review_sql(
+    "VACUUM (ANALYZE, TRUNCATE FALSE, INDEX_CLEANUP ON) events(id);",
+    execution=SeparateStatements,
+    initial_lock_timeout_ms=100,
+    max_lock_timeout_ms=100,
+  )
+  assert_true(report.complete)
+  assert_eq(report.diagnostics.map(d => d.code), ["ML150"])
+}
+```
+
+`moon run cmd/main -- fixtures/vacuum.sql separate --require-lock-timeout --json`
+reviews a concurrent-rebuild/vacuum workflow and exits 1 for ML150. Using
+`simple` also reports ML101 and ML151 for transaction conflicts. The example
+does not execute SQL. Catalog state, table kind, privileges, descendant expansion,
+bloat, wraparound failsafe and runtime lock contention require database checks.
+The rules follow [PostgreSQL 18 VACUUM](https://www.postgresql.org/docs/18/sql-vacuum.html).
 
 ## Statistics refresh after index maintenance
 
