@@ -6,6 +6,7 @@ priv enum Command {
   MoveIndex
   LockTable(LockMode, Bool)
   Analyze(skip_locked~ : Bool, database_wide~ : Bool)
+  Cluster(database_wide~ : Bool)
   Vacuum(
     full~ : Bool,
     skip_locked~ : Bool,
@@ -93,6 +94,7 @@ fn classify(fragment : Fragment) -> Command {
     ["LOCK", ..] => classify_lock(fragment.words[:])
     ["ANALYZE", ..] => classify_analyze(fragment.words[:])
     ["VACUUM", ..] => classify_vacuum(fragment.words[:])
+    ["CLUSTER", ..] => classify_cluster(fragment.words[:])
     ["CREATE", ..] => {
       let mut depth = 0
       for word in fragment.words {
@@ -352,6 +354,37 @@ pub fn review_sql(
             "Acquired locks are normally held until transaction end; rollback to an earlier savepoint can release them. Check descendant/view expansion, privileges and workload manually.",
           ),
         )
+      }
+      Cluster(database_wide~) => {
+        if require_lock_timeout || max_lock_timeout_ms is Some(_) {
+          timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)
+        }
+        if database_wide && tx != Idle {
+          let uncertain = tx == Uncertain
+          diagnostics.push(
+            finding(
+              "ML162",
+              if uncertain {
+                Incomplete
+              } else {
+                Error
+              },
+              fragment.span,
+              if uncertain {
+                "Cannot establish transaction context for database-wide CLUSTER"
+              } else {
+                "Database-wide CLUSTER cannot run in a transaction block"
+              },
+              "Dispatch it separately outside explicit/caller transactions and multi-statement simple-query blocks. A named ordinary table can be clustered in a transaction; partitioned tables cannot.",
+            ),
+          )
+          if uncertain {
+            complete = false
+          }
+          timeouts.taint()
+          tx = Uncertain
+        }
+        cluster_findings(database_wide, fragment.span, diagnostics)
       }
       Vacuum(full~, skip_locked~, truncate~, cleanup_off~, database_wide~) => {
         if require_lock_timeout || max_lock_timeout_ms is Some(_) {

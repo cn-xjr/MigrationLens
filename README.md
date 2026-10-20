@@ -667,6 +667,37 @@ Input limit: 1,000,000 UTF-16 units; NUL is rejected. Index syntax nesting is
 limited to 128 levels. The file adapter strictly decodes UTF-8 and rejects
 malformed bytes. The library itself accepts MoonBit strings, not byte streams.
 
+## Table reordering after index changes
+
+CLUSTER accepts a single optional-schema table with optional `USING index`,
+or no target, with legacy VERBOSE or a parenthesized VERBOSE boolean. ML160
+warns about ACCESS EXCLUSIVE locks, rewrite space and follow-up ANALYZE.
+ML161 identifies database-wide scope; ML162 rejects that form in known
+transaction blocks and reports incomplete when context is uncertain. Named
+ordinary tables are allowed in blocks. ML163 requires catalog checks: a
+partitioned table needs USING and cannot run in a block; an omitted index needs
+a remembered clustering index. No partition kind or index suitability is inferred.
+Old `index ON table` syntax, multiple targets and unconsumed clauses yield ML003.
+
+```mbt check
+///|
+test "review a targeted table reorder" {
+  let report = @migration_lens.review_sql(
+    "SET lock_timeout=100; CLUSTER public.events USING events_id; ANALYZE events;",
+    execution=SeparateStatements,
+    max_lock_timeout_ms=100,
+  )
+  assert_true(report.complete)
+  assert_eq(report.diagnostics.map(d => d.code), ["ML160", "ML163", "ML140"])
+}
+```
+
+`moon run cmd/main -- fixtures/cluster.sql separate --require-lock-timeout --json`
+reviews the full workflow without a database and exits 1 for those three warnings.
+Changing dispatch to `simple` still permits a named ordinary-table CLUSTER;
+this does not prove a catalog-dependent target is valid. Semantics follow
+[PostgreSQL 18 CLUSTER](https://www.postgresql.org/docs/18/sql-cluster.html).
+
 ## Development
 
 ```text

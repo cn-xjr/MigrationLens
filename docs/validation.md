@@ -76,6 +76,19 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+CLUSTER validation (October 16 stable toolchain): all 122 unit/documentation
+tests passed on Wasm, Wasm-GC, JavaScript and actual Linux native. Strict
+all-target compilation, formatting and interface regeneration passed with no
+public API changes. Portable CLI suites exercise targeted reordering followed
+by ANALYZE; the documented fixture also ran as a native process with expected
+exit 1 and ML160/ML163/ML140. Tests cover known/unknown transaction blocks,
+database-wide scope, malformed options/names, downstream uncertainty, timeout
+rollback, UTF-16 spans, deterministic output and typed archive round trips.
+New PostgreSQL probes compile locally; execution is delegated to remote CI.
+The previous VACUUM commit passed all four jobs in
+[run 39399780004](https://github.com/cn-xjr/MigrationLens/actions/runs/39399780004).
+No local PostgreSQL or Windows native execution is claimed.
+
 VACUUM tests cover separate/simple/explicit/external/unknown transaction state,
 all 16 legacy-option subsets, effective FULL/TRUNCATE/INDEX_CLEANUP settings,
 SKIP_LOCKED timeout limits, database-wide scope, 1..16 target lists, unsupported

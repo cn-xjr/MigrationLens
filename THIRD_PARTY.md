@@ -184,3 +184,8 @@ table-level locking documentation (PostgreSQL License) define the behavior:
 No upstream implementation or documentation text was copied. The READ ONLY
 wording also follows SET TRANSACTION: DDL restrictions are not limited to
 non-temporary relations.
+CLUSTER semantics were checked against the PostgreSQL 18 reference:
+<https://www.postgresql.org/docs/18/sql-cluster.html> (PostgreSQL License).
+The closed classifier, diagnostics, tests, database probes and
+`fixtures/cluster.sql` are authored under Apache-2.0; no upstream code or SQL
+example was copied. Actual target/index/partition facts remain caller checks.

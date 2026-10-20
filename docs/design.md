@@ -84,6 +84,9 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
 * Standalone vacuum workflows: transaction-block rejection, FULL versus ordinary
   lock/rewrite impact, truncation/cleanup caveats and targeted maintenance input.
 
+* Table reordering: targeted/database-wide CLUSTER, rewrite/lock warnings,
+  known transaction conflicts and explicit partition/index catalog limitations.
+
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only
 after preserving the existing rule contract. Full PostgreSQL parsing and

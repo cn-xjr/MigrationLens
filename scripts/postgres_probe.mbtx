@@ -361,6 +361,28 @@ async fn main {
     "VACUUM (TRUNCATE FALSE) migrationlens_probe", "CREATE INDEX CONCURRENTLY ml_probe_postvac ON migrationlens_probe(id)",
     "DROP INDEX CONCURRENTLY ml_probe_postvac",
   ])
+  let clustered = successful(
+    "targeted CLUSTER in transaction holds rewrite lock",
+    [
+      "CREATE INDEX ml_probe_cluster ON migrationlens_probe(id)", "BEGIN", "CLUSTER (VERBOSE FALSE) public.migrationlens_probe USING ml_probe_cluster",
+      "SELECT mode FROM pg_locks WHERE pid=pg_backend_pid() AND relation='migrationlens_probe'::regclass AND granted AND mode='AccessExclusiveLock'",
+      "COMMIT",
+    ],
+  )
+  assert_eq(clustered.stdout().trim().to_owned(), "AccessExclusiveLock")
+  let _ = successful("remembered and database-wide CLUSTER", [
+    "CLUSTER VERBOSE migrationlens_probe", "CLUSTER (VERBOSE OFF)",
+  ])
+  rejected(
+    "database-wide CLUSTER in explicit transaction",
+    ["BEGIN", "CLUSTER"],
+    "25001",
+  )
+  rejected(
+    "database-wide CLUSTER in implicit block",
+    ["SET lock_timeout=100; CLUSTER"],
+    "25001",
+  )
   let _ = successful("remove disposable probe table", [
     "DROP TABLE migrationlens_probe",
   ])
