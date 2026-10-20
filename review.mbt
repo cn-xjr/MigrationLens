@@ -5,6 +5,7 @@ priv enum Command {
   RenameIndex
   MoveIndex
   LockTable(LockMode, Bool)
+  Analyze(skip_locked~ : Bool, database_wide~ : Bool)
   InvalidIndex(String)
   Begin(read_only~ : Bool, deferrable~ : Bool)
   Finish(rollback~ : Bool, chain~ : Bool)
@@ -83,6 +84,7 @@ fn classify(fragment : Fragment) -> Command {
     ["ALTER", "INDEX", ..] => classify_alter_index(fragment.words[:])
     ["REINDEX", ..] => classify_reindex(fragment.words[:])
     ["LOCK", ..] => classify_lock(fragment.words[:])
+    ["ANALYZE", ..] => classify_analyze(fragment.words[:])
     ["CREATE", ..] => {
       let mut depth = 0
       for word in fragment.words {
@@ -342,6 +344,36 @@ pub fn review_sql(
             "Acquired locks are normally held until transaction end; rollback to an earlier savepoint can release them. Check descendant/view expansion, privileges and workload manually.",
           ),
         )
+      }
+      Analyze(skip_locked~, database_wide~) => {
+        if require_lock_timeout || max_lock_timeout_ms is Some(_) {
+          timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)
+        }
+        diagnostics.push(
+          finding(
+            "ML140",
+            Warning,
+            fragment.span,
+            "ANALYZE collects planner statistics and acquires SHARE UPDATE EXCLUSIVE locks",
+            (if skip_locked {
+              "SKIP_LOCKED may omit busy relations but can still wait on indexes or sample rows; it does not replace lock_timeout. "
+            } else {
+              "Budget lock waits and sampling work. "
+            }) +
+            "Review maintenance/schema contention, privileges, relation kind and descendant expansion; statistics and plan changes are not predicted.",
+          ),
+        )
+        if database_wide {
+          diagnostics.push(
+            finding(
+              "ML141",
+              Warning,
+              fragment.span,
+              "ANALYZE without a relation list has database-wide scope",
+              "Name the intended relations and columns to bound maintenance work. Privilege checks may cause relations to be skipped; coverage of database contents is not inferred.",
+            ),
+          )
+        }
       }
       MoveIndex => {
         if require_lock_timeout || max_lock_timeout_ms is Some(_) {

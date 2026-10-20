@@ -168,3 +168,10 @@ SET TRANSACTION documentation (PostgreSQL License):
 <https://www.postgresql.org/docs/18/sql-begin.html> and
 <https://www.postgresql.org/docs/18/sql-set-transaction.html>.
 No upstream parser or documentation text was copied.
+
+ANALYZE target/boolean-option handling, tests, probes and `fixtures/analyze.sql`
+are authored under Apache-2.0. References are PostgreSQL 18 ANALYZE and table-level
+locking documentation (PostgreSQL License):
+<https://www.postgresql.org/docs/18/sql-analyze.html> and
+<https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-TABLES>.
+No upstream implementation or documentation text was copied.

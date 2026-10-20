@@ -324,6 +324,15 @@ async fn main {
     "BEGIN", "LOCK TABLE ONLY public.migrationlens_probe, public.migrationlens_probe* IN ROW SHARE MODE NOWAIT",
     "COMMIT",
   ])
+  let analyzed = successful("ANALYZE columns and actual maintenance lock", [
+    "BEGIN READ WRITE", "ANALYZE (VERBOSE FALSE, SKIP_LOCKED FALSE) ONLY public.migrationlens_probe (id)",
+    "SELECT mode FROM pg_locks WHERE pid=pg_backend_pid() AND locktype='relation' AND relation='migrationlens_probe'::regclass AND granted AND mode='ShareUpdateExclusiveLock'",
+    "COMMIT",
+  ])
+  assert_eq(analyzed.stdout().trim().to_owned(), "ShareUpdateExclusiveLock")
+  let _ = successful("ANALYZE legacy verbose and relation list", [
+    "ANALYZE VERBOSE public.migrationlens_probe (id), ONLY public.migrationlens_probe",
+  ])
   let _ = successful("remove disposable probe table", [
     "DROP TABLE migrationlens_probe",
   ])

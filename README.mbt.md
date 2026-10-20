@@ -161,6 +161,41 @@ is performed. Catalog-qualified names and `ONLY (name)` remain incomplete,
 along with unsupported trailing clauses. Semantics follow [PostgreSQL 18 LOCK](https://www.postgresql.org/docs/18/sql-lock.html)
 and [table-level locking](https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-TABLES).
 
+## Statistics refresh after index maintenance
+
+`ANALYZE [VERBOSE] [table_and_columns, ...]` and parenthesized boolean options
+VERBOSE/SKIP_LOCKED are covered. Booleans accept omitted true, TRUE/ON/1 and
+FALSE/OFF/0. Targets allow quoted or schema-qualified names, ONLY, an optional
+inheritance `*`, and nonempty simple column lists. ONLY combined with `*`,
+catalog qualification, expressions, duplicate/unknown options, BUFFER_USAGE_LIMIT
+and extra clauses remain incomplete. No source data is discarded or rewritten.
+
+ML140 identifies SHARE UPDATE EXCLUSIVE lock contention and sampling/plan-change
+work. An omitted relation list additionally produces ML141 for database-wide
+scope. SKIP_LOCKED can skip busy relations and still wait on indexes or sample
+rows, so it retains the effective lock_timeout check. ANALYZE does not change
+modeled transaction/timeout state. Privileges, relation kinds, descendant
+expansion, sampled rows and the resulting statistics require database knowledge.
+
+```mbt check
+///|
+test "review statistics collection after a concurrent index" {
+  let report = @migration_lens.review_sql(
+    "SET lock_timeout=100; CREATE INDEX CONCURRENTLY a ON events(id); ANALYZE (SKIP_LOCKED) events(id);",
+    execution=SeparateStatements,
+    max_lock_timeout_ms=100,
+  )
+  assert_true(report.complete)
+  assert_eq(report.diagnostics.map(d => d.code), ["ML140"])
+}
+```
+
+`moon run cmd/main -- fixtures/analyze.sql separate --require-lock-timeout --json`
+reviews the complete index/statistics workflow and exits 1 for ML140. Sending
+it with `simple` additionally reports ML101 for the concurrent index. The CLI
+uses no database. Semantics follow [PostgreSQL 18 ANALYZE](https://www.postgresql.org/docs/18/sql-analyze.html)
+and [table locks](https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-TABLES).
+
 ```mbt check
 ///|
 test "review an index migration" {
