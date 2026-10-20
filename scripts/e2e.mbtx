@@ -32,6 +32,8 @@ async fn main {
     ("fixtures/replace-index.sql", "separate", true, 1),
     ("fixtures/table-locks.sql", "separate", true, 1),
     ("fixtures/table-locks.sql", "simple", true, 1),
+    ("fixtures/move-index.sql", "separate", true, 1),
+    ("fixtures/move-index.sql", "simple", true, 1),
     ("fixtures/river-006-bulk-unique.sql", "separate", false, 2),
   ]
   for (file, mode, timeout, expected) in cases {
@@ -65,6 +67,12 @@ async fn main {
     if file == "fixtures/reindex-options.sql" {
       assert_true(output.stdout().contains("ML111"))
       assert_true(!output.stdout().contains("ML003"))
+    }
+    if file == "fixtures/move-index.sql" {
+      assert_true(output.stdout().contains("ML112"))
+      assert_true(!output.stdout().contains("ML003"))
+      assert_true(!output.stdout().contains("ML202"))
+      assert_eq(output.stdout().contains("ML101"), mode == "simple")
     }
     if file == "fixtures/river-006-bulk-unique.sql" {
       assert_true(output.stdout().contains("ML003"))

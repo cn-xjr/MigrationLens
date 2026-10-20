@@ -76,6 +76,24 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Single-index tablespace tests cover qualified/quoted names and destinations,
+UTF-16 source spans, deterministic JSON and typed restoration, SARIF export,
+transaction/savepoint timeout state, inclusive maxima, disabled/unknown values,
+simple-query conflicts on subsequent concurrent operations, unsupported bulk
+forms/clauses and recovery with an independent valid input. Existing rename
+tests still run through the shared closed ALTER INDEX classifier. The CLI suite
+reviews `fixtures/move-index.sql` under separate and simple dispatch.
+An added PostgreSQL probe requests pg_default on an existing disposable index
+and checks its actual ACCESS EXCLUSIVE lock. This is a no-copy placement case;
+the new probe has only been compiled locally, not executed against a server.
+The completed follow-up passed 85 unit/documentation tests on each of Wasm,
+Wasm-GC, JavaScript and Linux native with the October 16 compiler/core. Strict
+all-target compilation, formatting and interface checks passed; the public API
+is unchanged by this SQL extension. Full CLI suites passed on all four targets,
+including actual Linux native execution. All six generated SARIF samples passed
+the external official schema. No new remote CI run or Windows native execution
+is claimed.
+
 Baseline comparisons check duplicate-count conservation in both directions,
 stable source order, position-only movement, exact SQL/metadata changes,
 invalid UTF-16 spans/Unicode, inconsistent and incomplete reports, deterministic

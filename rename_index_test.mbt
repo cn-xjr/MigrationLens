@@ -56,8 +56,8 @@ test "rename never ignores clauses or accepts a qualified target name" {
   for
     sql in [
       "ALTER INDEX a RENAME TO b.c;", "ALTER INDEX a RENAME TO 'b';", "ALTER INDEX a RENAME TO \"\";",
-      "ALTER INDEX a RENAME TO b CASCADE;", "ALTER INDEX a SET TABLESPACE s;", "ALTER INDEX a ATTACH PARTITION b;",
-      "ALTER INDEX IF a RENAME TO b;", "ALTER INDEX a, b RENAME TO c;",
+      "ALTER INDEX a RENAME TO b CASCADE;", "ALTER INDEX a SET TABLESPACE s NOWAIT;",
+      "ALTER INDEX a ATTACH PARTITION b;", "ALTER INDEX IF a RENAME TO b;", "ALTER INDEX a, b RENAME TO c;",
     ] {
     let report = @migration_lens.review_sql(
       sql + " DROP INDEX CONCURRENTLY c;",

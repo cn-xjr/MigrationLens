@@ -71,6 +71,8 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   block requirements, NOWAIT-aware timeout policy and mode-specific impact.
 * Trusted report baselines: exact multiset comparison with duplicate conservation,
   retained source reports, strict completeness and an explicit new-findings gate.
+* Index storage placement: single-index SET TABLESPACE lock/capacity diagnostics,
+  scoped timeout review and unchanged downstream dispatch semantics.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only

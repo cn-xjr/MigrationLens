@@ -144,3 +144,10 @@ under Apache-2.0; no upstream comparison algorithm or fingerprint implementation
 is copied. Keys are exact ordered JSON tuples using MoonBit core, not SARIF
 fingerprints. End-to-end input extends the attributed postgres-migrations
 fixture with an authored ordinary DROP INDEX statement for offline review.
+
+Single-index SET TABLESPACE syntax, privileges and lock level were checked
+against the PostgreSQL 18 ALTER INDEX reference already cited above:
+<https://www.postgresql.org/docs/18/sql-alterindex.html> (PostgreSQL License).
+The classifier, diagnostics, tests, pg_default lock probe and
+`fixtures/move-index.sql` are authored under Apache-2.0. No documentation
+example, upstream fixture or implementation was copied for this capability.

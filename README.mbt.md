@@ -69,6 +69,41 @@ reviews a complete concurrent create/drop/rename workflow and exits 1 for ML110.
 Sending the whole file with `simple` additionally reports concurrent transaction
 conflicts. This is an authored review example; it does not execute SQL.
 
+Single-index storage placement supports
+`ALTER INDEX [IF EXISTS] name SET TABLESPACE tablespace_name` with a quoted or
+optionally schema-qualified index name and a single tablespace identifier.
+ML112 warns about ACCESS EXCLUSIVE on the index. A change of tablespace may copy
+its storage files; current placement, free space, privileges, ownership and
+partition/temporary-relation behavior require catalog review. The opt-in timeout
+policy uses the same session/local/savepoint state as other index operations.
+This statement is allowed in transactions; subsequent concurrent operations are
+still checked against the actual declared dispatch. IF EXISTS never establishes
+that the relation exists or that a move will occur.
+
+```mbt check
+///|
+test "review an index storage-placement change with bounded waiting" {
+  let report = @migration_lens.review_sql(
+    "SET lock_timeout=100; ALTER INDEX public.events_id_idx SET TABLESPACE pg_default;",
+    execution=SeparateStatements,
+    max_lock_timeout_ms=100,
+  )
+  assert_true(report.complete)
+  assert_eq(report.diagnostics.length(), 1)
+  assert_eq(report.diagnostics[0].code, "ML112")
+}
+```
+
+`moon run cmd/main -- fixtures/move-index.sql separate --require-lock-timeout --json`
+reviews a storage-placement/rebuild workflow and exits 1 for ML112. Using
+`simple` also reports ML101 on its concurrent rebuild. This authored fixture
+names the built-in pg_default destination but only reviews SQL; it does not
+execute a move or require an events table. Bulk `ALL IN TABLESPACE`, `OWNED BY`,
+`NOWAIT`, schema-qualified destinations, combined actions and unknown clauses
+remain incomplete. NOWAIT is supported by PostgreSQL's different bulk-move
+syntax, not this single-index form. The rules follow
+[PostgreSQL 18 ALTER INDEX](https://www.postgresql.org/docs/18/sql-alterindex.html).
+
 Explicit table-lock statements support `LOCK [TABLE] [ONLY] name [*] [, ...]`
 with an optional `IN mode MODE` and `NOWAIT`. Names may be quoted or schema
 qualified. All eight PostgreSQL table-lock modes are recognized; omitted mode

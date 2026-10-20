@@ -246,6 +246,11 @@ async fn main {
     ["DROP INDEX CONCURRENTLY ml_probe_a CASCADE"],
     "0A000",
   )
+  let moved = successful("single-index tablespace lock in transaction", [
+    "BEGIN", "ALTER INDEX public.ml_probe_b SET TABLESPACE pg_default", "SELECT mode FROM pg_locks WHERE pid=pg_backend_pid() AND locktype='relation' AND relation='ml_probe_b'::regclass AND granted AND mode='AccessExclusiveLock'",
+    "COMMIT",
+  ])
+  assert_eq(moved.stdout().trim().to_owned(), "AccessExclusiveLock")
   let _ = successful("qualified concurrent drop with RESTRICT", [
     "DROP INDEX CONCURRENTLY public.ml_probe_a RESTRICT",
   ])

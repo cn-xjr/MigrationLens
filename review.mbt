@@ -3,6 +3,7 @@ priv enum Command {
   Index(Bool)
   Reindex(Bool, Bool)
   RenameIndex
+  MoveIndex
   LockTable(LockMode, Bool)
   InvalidIndex(String)
   Begin
@@ -75,20 +76,7 @@ fn classify(fragment : Fragment) -> Command {
       )
     }
     ["DROP", "INDEX", ..] => classify_drop(fragment.words[:])
-    ["ALTER", "INDEX", .. rest] => {
-      let names = match rest {
-        ["IF", "EXISTS", .. tail] => tail
-        _ => rest
-      }
-      match names {
-        [old, "RENAME", "TO", new] if index_identifier(old) &&
-          index_identifier(new) => RenameIndex
-        [schema, ".", old, "RENAME", "TO", new] if index_identifier(schema) &&
-          index_identifier(old) &&
-          index_identifier(new) => RenameIndex
-        _ => Unsupported
-      }
-    }
+    ["ALTER", "INDEX", ..] => classify_alter_index(fragment.words[:])
     ["REINDEX", ..] => classify_reindex(fragment.words[:])
     ["LOCK", ..] => classify_lock(fragment.words[:])
     ["CREATE", ..] => {
@@ -325,6 +313,20 @@ pub fn review_sql(
               "Review lock acquisition waits and acquisition order. "
             }) +
             "Acquired locks are normally held until transaction end; rollback to an earlier savepoint can release them. Check descendant/view expansion, privileges and workload manually.",
+          ),
+        )
+      }
+      MoveIndex => {
+        if require_lock_timeout || max_lock_timeout_ms is Some(_) {
+          timeouts.check(fragment.span, diagnostics, max_lock_timeout_ms)
+        }
+        diagnostics.push(
+          finding(
+            "ML112",
+            Warning,
+            fragment.span,
+            "Index tablespace move requires an ACCESS EXCLUSIVE lock on the index",
+            "Review index lock contention, destination CREATE privileges, ownership, free space and partition/temporary-relation behavior. Existing placement and copy work require catalog checks; keep the transaction short.",
           ),
         )
       }
