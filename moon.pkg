@@ -2,6 +2,7 @@ import {
   "moonbit-community/sqlparser" @sql,
   "moonbitlang/core/debug",
   "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
 }
 
 import {

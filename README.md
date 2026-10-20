@@ -152,6 +152,53 @@ Import `cn-xjr/migration_lens`. Public API: `review_sql`, `Execution`, `Report`,
 `Diagnostic`, `Severity`, `Span`. Reports provide `exit_code`, `to_text` and
 versioned deterministic `to_json`. Spans use half-open UTF-16 code-unit offsets;
 text positions are one-based UTF-16 columns and lines.
+
+## SARIF reports for code scanning
+
+`Report::to_sarif(artifact_path)` returns `Result[Json, String]` containing
+SARIF 2.1.0. Every diagnostic remains a result; repeated rule IDs share a rule
+descriptor without merging findings. Error and incomplete diagnostics have
+SARIF level `error`, warnings have `warning`; the original severity, message,
+help and UTF-16 span are retained in result properties. The original SQL is
+embedded in the artifact. Reports can contain sensitive SQL, so review them
+before sharing. Incomplete analysis sets `executionSuccessful=false`; covered
+findings still count as a successful scan with exit code 1.
+
+```mbt check
+///|
+test "export an incomplete review without hiding findings" {
+  let report = @migration_lens.review_sql(
+    "SELECT 1;",
+    execution=SeparateStatements,
+  )
+  assert_eq(report.exit_code(), 2)
+  assert_true(report.to_sarif("migrations/001.sql") is Ok(_))
+}
+```
+
+Run from the repository root:
+
+```text
+moon run cmd/main -- fixtures/batch-indexes.sql simple --sarif
+moon run cmd/main -- fixtures/river-006-bulk-unique.sql separate --sarif
+```
+
+The first exits 1, the second 2; stdout contains SARIF in both cases. Capture
+stdout with a UTF-8-aware process runner and retain the exit code as your CI
+gate. `--sarif` and `--json` are mutually exclusive. SARIF paths must be relative
+to the repository, with no absolute/drive/scheme paths or empty/dot/parent
+components. Backslashes normalize to slashes; Unicode and reserved URI bytes
+are percent-encoded. For this output use `fixtures/file.sql`, not `./fixtures/file.sql`.
+Invalid paths or externally constructed reports with invalid spans, metadata
+or Unicode return `Err`; the CLI exits 2. No findings are silently removed.
+Coordinates use UTF-16 columns and CRLF/CR/LF line breaks; zero-width EOF spans
+are retained. Existing text and version-1 JSON output are unchanged.
+
+The format follows the [OASIS SARIF 2.1.0 specification](https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html).
+Local schema validation does not establish acceptance by a particular hosted
+code scanning service; no upload, hosting account or private infrastructure is
+needed to generate and inspect these reports.
+
 This is an unpublished source checkout, not a Mooncakes release. Run the examples
 from this repository; no `moon add` installation is claimed yet. The JS CLI uses
 Node.js. Browser execution and macOS execution have not been tested locally.

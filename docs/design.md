@@ -29,7 +29,8 @@ explicit incomplete finding. Review is deterministic and has no database I/O.
 Reporting uses the original source; there is no lossy SQL reserialization.
 
 The minimal API is `review_sql`, `Report::exit_code`, `Report::to_text` and
-`Report::to_json`. Execution mode is mandatory. Reports expose findings and
+`Report::to_json`, plus fallible `Report::to_sarif` for code scanning consumers.
+Execution mode is mandatory. Reports expose findings and
 analysis completeness. Completeness describes only the documented rule set,
 never all PostgreSQL semantics or successful execution against a real catalog.
 
@@ -52,6 +53,10 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   concurrent combinations receive actionable errors.
 * Bounded lock waiting: optional caller maximum on effective milliseconds,
   library and CLI workflows, inclusive boundaries and invalid-policy diagnostics.
+* Single-index maintenance: REINDEX INDEX reuses dispatch/timeout review and
+  warns about catalog-dependent partition restrictions.
+* Code scanning reports: SARIF preserves source and every diagnostic, validates
+  paths/spans, declares UTF-16 positions and retains incomplete-run status.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only

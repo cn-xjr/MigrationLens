@@ -4,7 +4,7 @@ fn main {
   let args = @env.args()[argument_prefix():].to_owned()
   if args.length() < 2 || args.length() > 6 {
     println(
-      "usage: migration-lens <file.sql> <separate|simple|transaction|unknown> [--json] [--require-lock-timeout] [--initial-transaction] [--max-lock-timeout-ms=N]",
+      "usage: migration-lens <file.sql> <separate|simple|transaction|unknown> [--json|--sarif] [--require-lock-timeout] [--initial-transaction] [--max-lock-timeout-ms=N]",
     )
     @sys.exit(2)
     return
@@ -21,6 +21,7 @@ fn main {
     }
   }
   let mut json_output = false
+  let mut sarif_output = false
   let mut require_lock_timeout = false
   let mut initial_transaction = false
   let mut max_lock_timeout_ms : Int32? = None
@@ -39,6 +40,7 @@ fn main {
     }
     match option {
       "--json" => json_output = true
+      "--sarif" => sarif_output = true
       "--require-lock-timeout" => require_lock_timeout = true
       "--initial-transaction" => initial_transaction = true
       _ => {
@@ -47,6 +49,11 @@ fn main {
         return
       }
     }
+  }
+  if json_output && sarif_output {
+    println("Choose only one output format: --json or --sarif")
+    @sys.exit(2)
+    return
   }
   let source = @utf8.decode(@fs.read_file_to_bytes(args[0])) catch {
     e => {
@@ -62,7 +69,16 @@ fn main {
     require_lock_timeout~,
     max_lock_timeout_ms?,
   )
-  if json_output {
+  if sarif_output {
+    match report.to_sarif(args[0]) {
+      Ok(data) => println(data.stringify())
+      Err(message) => {
+        println("Cannot export SARIF: \{message}")
+        @sys.exit(2)
+        return
+      }
+    }
+  } else if json_output {
     println(report.to_json().stringify())
   } else {
     println(report.to_text())

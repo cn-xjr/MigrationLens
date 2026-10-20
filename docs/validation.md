@@ -76,6 +76,35 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+SARIF regression coverage includes clean, covered and incomplete reports,
+duplicate rule descriptors without merging results, retained source/severity/
+message/help/spans, deterministic JSON round trips, UTF-8 URI encoding, Windows
+separators, rejected paths, CRLF/CR/LF, surrogate-pair boundaries, invalid public
+metadata and zero-width EOF spans. The e2e suite checks CLI output formats and
+exit codes and writes `_build/sarif-0.json`, `sarif-1.json` and `sarif-2.json`.
+All three emitted cases passed the official OASIS SARIF 2.1.0 errata01 JSON
+Schema locally on 2026-10-20 with Python jsonschema 3.2.0. This establishes
+schema conformance of those samples, not hosted service upload compatibility.
+
+Optional schema reproduction (requires curl and Python jsonschema installed):
+
+```text
+moon run scripts/e2e.mbtx wasm
+curl -fL https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json -o _build/sarif-schema.json
+python -m jsonschema -i _build/sarif-0.json -i _build/sarif-1.json -i _build/sarif-2.json _build/sarif-schema.json
+```
+
+The schema download is an external validation resource, not a runtime dependency
+or vendored file. The standard portable CI suite now exercises the SARIF CLI
+cases; the optional external schema command is separate from that suite.
+
+The REINDEX/SARIF follow-up has 45 passing unit/documentation tests on Wasm,
+Wasm-GC and JavaScript using October 16, and Linux native using October 12.
+All four CLI suites passed (Linux native uses October 12), including existing
+JSON/text behavior, new SARIF output and malformed input. Strict checks passed for all four targets
+with October 16. Windows native execution and new PostgreSQL probes remain
+unexecuted locally; no new remote CI result is claimed before pushing.
+
 REINDEX INDEX tests cover ordinary/concurrent operations, qualified and escaped
 names, implicit/explicit/caller transactions, timeout maxima, preserved source,
 determinism and unsupported options/scopes. The PostgreSQL probe adds actual
