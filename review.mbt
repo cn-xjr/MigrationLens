@@ -6,7 +6,7 @@ priv enum Command {
   MoveIndex
   LockTable(LockMode, Bool)
   InvalidIndex(String)
-  Begin
+  Begin(read_only~ : Bool, deferrable~ : Bool)
   Finish(rollback~ : Bool, chain~ : Bool)
   SetTimeout(scoped~ : Bool, Timeout)
   Savepoint(String)
@@ -56,10 +56,14 @@ fn classify(fragment : Fragment) -> Command {
         Some(n) => RollbackTo(n)
         None => Unsupported
       }
-    ["BEGIN"]
-    | ["BEGIN", "WORK"]
-    | ["BEGIN", "TRANSACTION"]
-    | ["START", "TRANSACTION"] => Begin
+    ["BEGIN", .. rest] => {
+      let modes = match rest {
+        ["WORK" | "TRANSACTION", .. tail] => tail
+        _ => rest
+      }
+      classify_begin(modes)
+    }
+    ["START", "TRANSACTION", .. modes] => classify_begin(modes)
     ["COMMIT" | "END" | "ROLLBACK" | "ABORT", .. rest] => {
       let suffix = match rest {
         ["WORK" | "TRANSACTION", .. tail] => tail
@@ -188,7 +192,29 @@ pub fn review_sql(
     }
     let command = classify(fragment)
     match command {
-      Begin =>
+      Begin(read_only~, deferrable~) => {
+        if read_only {
+          diagnostics.push(
+            finding(
+              "ML130",
+              Warning,
+              fragment.span,
+              "READ ONLY restricts changes to non-temporary relations",
+              "Review CREATE/DROP/ALTER/REINDEX against the relation kind. This review does not infer temporary relations or enforce read-only permissions; nested BEGIN does not change existing transaction characteristics.",
+            ),
+          )
+        }
+        if deferrable {
+          diagnostics.push(
+            finding(
+              "ML131",
+              Warning,
+              fragment.span,
+              "DEFERRABLE can wait for a safe snapshot in a SERIALIZABLE READ ONLY transaction",
+              "Budget snapshot wait separately from lock_timeout. DEFERRABLE has no effect in other modes; runner defaults and existing transaction characteristics are not inferred.",
+            ),
+          )
+        }
         if tx == Explicit || tx == External {
           diagnostics.push(
             finding(
@@ -206,6 +232,7 @@ pub fn review_sql(
           tx = Explicit
           open_span = fragment.span
         }
+      }
       Finish(rollback~, chain~) => {
         if chain && (tx == Idle || tx == Implicit) {
           diagnostics.push(

@@ -54,7 +54,7 @@ test "no nested BEGIN and ending caller transaction are visible" {
   assert_eq(report.diagnostics[1].code, "ML105")
   for
     sql in [
-      "BEGIN READ ONLY;", "COMMIT AND MAYBE CHAIN;", "DROP INDEX a ON t;", "BEGIN SELECT 1",
+      "BEGIN READ SOMETHING;", "COMMIT AND MAYBE CHAIN;", "DROP INDEX a ON t;", "BEGIN SELECT 1",
     ] {
     assert_eq(
       @migration_lens.review_sql(sql, execution=SeparateStatements).exit_code(),

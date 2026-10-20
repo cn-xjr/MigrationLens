@@ -161,3 +161,10 @@ Batch baseline matching, snapshot/provenance handling, CLI and tests are authore
 under Apache-2.0. They extend this project's single-report comparison contract
 using MoonBit core maps and JSON. No external matcher, baseline implementation
 or test suite was copied; end-to-end archives reuse the attributed inputs above.
+
+Transaction-mode grammar, tests and `fixtures/transaction-modes.sql` are authored
+under Apache-2.0. Semantics were checked against PostgreSQL 18 BEGIN and
+SET TRANSACTION documentation (PostgreSQL License):
+<https://www.postgresql.org/docs/18/sql-begin.html> and
+<https://www.postgresql.org/docs/18/sql-set-transaction.html>.
+No upstream parser or documentation text was copied.

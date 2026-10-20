@@ -76,6 +76,16 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+Transaction-mode validation covers 32 start/isolation/separator combinations,
+mode reordering, read-only/deferrable limitations, UTF-16 spans, JSON restoration,
+SARIF, savepoint/chain timeout behavior, malformed/repeated modes and recovery.
+All 102 unit/documentation tests passed on Wasm, Wasm-GC, JavaScript and actual
+Linux native with the October 16 toolchain; strict all-target compilation,
+formatting and interface regeneration passed. The documented mode-bearing CLI
+fixture ran on all four targets with the expected findings. New PostgreSQL
+characteristic/SQLSTATE probes are compiled locally; server execution requires
+the pushed commit's CI. No public API changes are needed for this SQL extension.
+
 Historical follow-up notes below record what had run at each milestone. The
 subsequent pushed archive commit `a8931d3` passed all four jobs in
 [Actions run 39375835782](https://github.com/cn-xjr/MigrationLens/actions/runs/39375835782):

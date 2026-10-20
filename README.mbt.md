@@ -7,6 +7,21 @@ verbatim. Unsupported SQL is explicitly incomplete, never silently discarded.
 
 Currently covers CREATE INDEX, DROP INDEX, BEGIN/START TRANSACTION and
 COMMIT/ROLLBACK, including WORK/TRANSACTION suffixes.
+BEGIN/START TRANSACTION also accept ISOLATION LEVEL (SERIALIZABLE, REPEATABLE
+READ, READ COMMITTED or READ UNCOMMITTED), READ ONLY/WRITE and [NOT] DEFERRABLE.
+Mode order may vary and commas between modes are optional. Repeated categories,
+malformed modes and unrecognized suffixes remain incomplete; precedence is not
+guessed. These starts preserve the same transaction, savepoint, timeout and
+dispatch rules as plain BEGIN. READ ONLY adds ML130 for catalog-dependent DDL
+restrictions; DEFERRABLE adds ML131 for potential safe-snapshot waiting outside
+the lock_timeout budget. Defaults, read-only enforcement and snapshot scheduling
+are not inferred. Nested BEGIN still cannot change an existing transaction.
+See [PostgreSQL 18 BEGIN](https://www.postgresql.org/docs/18/sql-begin.html) and
+[SET TRANSACTION](https://www.postgresql.org/docs/18/sql-set-transaction.html).
+`moon run cmd/main -- fixtures/transaction-modes.sql separate --require-lock-timeout --json`
+reviews a rename/commit/concurrent-create workflow and exits 1. Using `simple`
+also reports ML101 for the later concurrent create.
+
 END/ABORT aliases and AND [NO] CHAIN are supported. Chaining starts a new explicit
 transaction, clears savepoints/local settings and uses the committed or rolled
 back session settings as its new baseline. Chaining without an explicit

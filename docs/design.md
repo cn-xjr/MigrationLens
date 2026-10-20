@@ -77,6 +77,8 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   invalid-policy reports and offline text/JSON/multi-run SARIF rendering.
 * Batch baselines: exact path/context matching with duplicate occurrences,
   preserved file/source provenance, atomic coverage checks and new-findings gates.
+* Transaction start modes: closed mode-list grammar, unchanged transaction/timeout
+  transitions, and explicit read-only/safe-snapshot limitations.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only
