@@ -102,3 +102,9 @@ Index rename syntax/lock/constraint semantics were checked against PostgreSQL 18
 ALTER INDEX: <https://www.postgresql.org/docs/18/sql-alterindex.html>.
 `fixtures/replace-index.sql` and its regression cases are authored examples,
 Apache-2.0; no SQL or implementation was copied from that documentation.
+
+The batch manifest, aggregation code and tests are authored under Apache-2.0.
+`fixtures/review-manifest.json` references the already-attributed PostgreSQL
+migration/River fixtures and the authored replacement example without copying
+or modifying them. Batch parsing uses MoonBit core's strict JSON duplicate-key
+option; no additional package or external implementation is reused.

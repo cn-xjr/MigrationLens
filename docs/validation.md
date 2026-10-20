@@ -76,6 +76,28 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+The multi-file extension tests input ordering, duplicate path labels, isolation
+of transaction/timeout state, continued review after incomplete SQL, maximum
+exit-code aggregation, deterministic JSON, separate SARIF runs and rejection of
+partial SARIF conversion. Manifest tests reject unknown fields, duplicate decoded
+keys, invalid versions/types/policies/paths/Unicode and over-limit input, while
+accepting the 1,000-entry boundary. CLI tests cover all output formats, real
+upstream SQL, missing/invalid-UTF-8 files and recovery after bad input. The sample
+manifest is `fixtures/review-manifest.json`; its SARIF output is written to
+`_build/sarif-batch.json` by the e2e suite for optional schema validation.
+
+Manifest duplicate-key rejection requires the October 16 core API used by CI.
+Local Linux validation now uses the same October 16 compiler/core, installed in
+an isolated toolchain directory, replacing the earlier October 12 runtime checks
+for this follow-up. Historical results above remain recorded with their versions.
+The current follow-up passed 54 unit/documentation tests on Wasm, Wasm-GC,
+JavaScript and Linux native with that same compiler/core. Strict checks passed
+for all targets, and all four single-file/batch CLI suites passed, including
+actual Linux native execution with October 16.
+The emitted three-run batch SARIF and all single-file SARIF samples passed the
+official schema locally. Added PostgreSQL rename probes are compiled only;
+no new remote CI run or Windows native execution is claimed.
+
 Index rename regressions cover the create/drop/rename replacement workflow,
 quoted/qualified names, IF EXISTS, transaction-local timeout, source ranges,
 deterministic reports and unsupported trailing clauses. The database probe

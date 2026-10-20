@@ -57,6 +57,10 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   warns about catalog-dependent partition restrictions.
 * Code scanning reports: SARIF preserves source and every diagnostic, validates
   paths/spans, declares UTF-16 positions and retains incomplete-run status.
+* Index replacement: concurrent create/drop followed by rename, with its own
+  lock and constraint-naming warning and effective-timeout checks.
+* Independent migration lists: per-file context/policy, continued coverage after
+  SQL errors, severity aggregation, strict file manifests and multi-run SARIF.
 
 Each capability includes its own tests, documentation and generated interface.
 Later work may support caller-supplied relation facts and additional DDL, only

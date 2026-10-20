@@ -6,11 +6,21 @@ import {
 }
 
 // Values
+pub fn review_migrations(ArrayView[Migration]) -> BatchReport
+
 pub fn review_sql(String, execution~ : Execution, initial_transaction? : Bool, require_lock_timeout? : Bool, max_lock_timeout_ms? : Int32) -> Report
 
 // Errors
 
 // Types and methods
+pub struct BatchReport {
+  files : Array[FileReport]
+}
+pub fn BatchReport::exit_code(Self) -> Int32
+pub fn BatchReport::to_json(Self) -> Json
+pub fn BatchReport::to_sarif(Self) -> Result[Json, String]
+pub fn BatchReport::to_text(Self) -> String
+
 pub(all) struct Diagnostic {
   code : String
   severity : Severity
@@ -33,6 +43,21 @@ pub fn Execution::equal(Self, Self) -> Bool
 pub fn Execution::not_equal(Self, Self) -> Bool
 pub fn Execution::to_json(Self) -> Json
 pub fn Execution::to_repr(Self) -> @debug.Repr
+
+pub struct FileReport {
+  migration : Migration
+  report : Report
+}
+
+pub(all) struct Migration {
+  path : String
+  source : String
+  execution : Execution
+  initial_transaction : Bool
+  require_lock_timeout : Bool
+  max_lock_timeout_ms : Int32?
+}
+pub fn Migration::new(String, String, execution~ : Execution, initial_transaction? : Bool, require_lock_timeout? : Bool, max_lock_timeout_ms? : Int32) -> Self
 
 pub(all) struct Report {
   source : String

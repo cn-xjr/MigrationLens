@@ -1,0 +1,8 @@
+{
+  "format_version": 1,
+  "migrations": [
+    { "path": "fixtures/postgres-migrations-concurrent.sql", "execution": "separate" },
+    { "path": "fixtures/replace-index.sql", "execution": "separate", "max_lock_timeout_ms": 2000 },
+    { "path": "fixtures/river-006-bulk-unique.sql", "execution": "separate" }
+  ]
+}

@@ -166,6 +166,71 @@ Import `cn-xjr/migration_lens`. Public API: `review_sql`, `Execution`, `Report`,
 versioned deterministic `to_json`. Spans use half-open UTF-16 code-unit offsets;
 text positions are one-based UTF-16 columns and lines.
 
+## Independent multi-file review
+
+Use `Migration::new(path, source, execution=...)` and
+`review_migrations(inputs[:])` for several independent inputs. Each migration
+has its own execution, initial-transaction and timeout policy. Input order,
+duplicate path labels, all source and diagnostics are retained. A file with an
+incomplete analysis never prevents later files from being reviewed. State does
+not flow between files: this API does not model a runner sending several files
+through one shared transaction/session.
+
+```mbt check
+///|
+test "review a migration list without sharing transaction state" {
+  let inputs = [
+    @migration_lens.Migration::new(
+      "001.sql",
+      "BEGIN;",
+      execution=SeparateStatements,
+    ),
+    @migration_lens.Migration::new(
+      "002.sql",
+      "DROP INDEX CONCURRENTLY a;",
+      execution=SeparateStatements,
+    ),
+  ]
+  let batch = @migration_lens.review_migrations(inputs[:])
+  assert_eq(batch.exit_code(), 1)
+  assert_eq(batch.files[1].report.exit_code(), 0)
+}
+```
+
+`BatchReport` exposes `files` (`FileReport` migration/report pairs), `exit_code`,
+`to_text`, version-1 `to_json` and fallible `to_sarif`. Aggregate exit codes are
+the maximum file code: incomplete 2, findings 1, clean 0. SARIF emits one run
+per input, including duplicate paths, preserving each run's completion status.
+An invalid path/report rejects the entire SARIF export. The pure library accepts
+an empty list and returns exit 0; the CLI requires an explicit nonempty list.
+File reports retain their original `migration`; JSON and SARIF run properties
+include its execution and timeout policy so repeated path labels remain auditable.
+
+From the repository root:
+
+```text
+moon run cmd/batch -- fixtures/review-manifest.json --json
+moon run cmd/batch -- fixtures/review-manifest.json --sarif
+```
+
+Both examples review three files and exit 2 while retaining the clean,
+warning and incomplete reports. With no format flag, the CLI prints text.
+The manifest contains `format_version: 1` and a `migrations` array. Every entry
+requires `path` and `execution` (`separate`, `simple`, `transaction`, `unknown`),
+and optionally boolean `initial_transaction` / `require_lock_timeout` and a
+positive integer `max_lock_timeout_ms` up to 2147483647. Paths are resolved from
+the process working directory, not the manifest directory; they must be relative
+with no empty/dot/parent components, drives, schemes or control characters.
+Windows separators normalize to `/`. Duplicate file entries are permitted.
+
+Unknown fields, duplicate decoded JSON keys, invalid Unicode/types/policies,
+unsupported versions, more than 16 nesting levels, over 1,000,000 UTF-16 units,
+empty lists or more than 1,000 entries are rejected. Every SQL file is strictly
+decoded as UTF-8 before analysis. A missing/unreadable file or invalid manifest
+returns an actionable error and exit 2, without a partial batch report. SQL
+coverage failures instead remain per-file reports. This workflow does not
+execute SQL, upload reports or require database infrastructure.
+
 ## SARIF reports for code scanning
 
 `Report::to_sarif(artifact_path)` returns `Result[Json, String]` containing

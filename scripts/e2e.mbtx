@@ -158,7 +158,90 @@ async fn main {
   ]).output(timeout_ms=60000)
   assert_eq(invalid.exit_code(), 2)
   assert_true(invalid.stdout().contains("Cannot read UTF-8"))
+  for format in ["--json", "--sarif"] {
+    let args = [
+      "run", "--target", target, "cmd/batch", "--", "fixtures/review-manifest.json",
+      format,
+    ]
+    let output = @shell.Cmd(moon, args).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), 2)
+    let data = @json.parse(output.stdout())
+    if format == "--json" {
+      guard data
+        is { "exit_code": 2, "files": [clean, warning, incomplete], .. } else {
+        fail("batch must retain every file")
+      }
+      guard clean
+        is { "report": { "complete": true, "diagnostics": [], .. }, .. } else {
+        fail("clean file lost")
+      }
+      guard warning is { "report": { "complete": true, .. }, .. } else {
+        fail("covered file lost")
+      }
+      guard incomplete is { "report": { "complete": false, .. }, .. } else {
+        fail("incomplete file lost")
+      }
+    } else {
+      guard data is { "version": "2.1.0", "runs": [_, _, _], .. } else {
+        fail("expected three independent SARIF runs")
+      }
+      @fs.write_file("_build/sarif-batch.json", output.stdout())
+    }
+    assert_eq(@json.parse(data.stringify()), data)
+    let again = @shell.Cmd(moon, args).output(timeout_ms=60000)
+    assert_eq(again.stdout(), output.stdout())
+  }
+  for
+    (path, expected) in [
+      ("fixtures/postgres-migrations-concurrent.sql", 0),
+      ("fixtures/replace-index.sql", 1),
+    ] {
+    @fs.write_file(
+      "_build/batch-one.json",
+      "{\"format_version\":1,\"migrations\":[{\"path\":\"\{path}\",\"execution\":\"separate\"}]}",
+    )
+    let output = @shell.Cmd(moon, [
+      "run", "--target", target, "cmd/batch", "--", "_build/batch-one.json",
+    ]).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), expected)
+    assert_true(output.stdout().contains("MigrationLens batch: 1 files"))
+  }
+  for
+    malformed in [
+      "{\"format_version\":1,\"migrations\":[],\"unknown\":true}", "{\"format_version\":1,\"migrations\":[{\"path\":\"a\",\"path\":\"b\",\"execution\":\"separate\"}]}",
+      "{\"format_version\":1,\"migrations\":[{\"path\":\"_build/no-such-batch-file.sql\",\"execution\":\"separate\"}]}",
+      "{\"format_version\":1,\"migrations\":[{\"path\":\"_build/invalid-utf8.sql\",\"execution\":\"separate\"}]}",
+    ] {
+    @fs.write_file("_build/batch-invalid.json", malformed)
+    let output = @shell.Cmd(moon, [
+      "run", "--target", target, "cmd/batch", "--", "_build/batch-invalid.json",
+      "--json",
+    ]).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), 2)
+    assert_true(output.stdout().contains("Cannot review migration manifest:"))
+  }
+  for
+    args in [
+      [],
+      ["_build/invalid-utf8.sql"],
+      ["fixtures/review-manifest.json", "--bad"],
+      ["fixtures/review-manifest.json", "--json", "--sarif"],
+    ] {
+    let command = ["run", "--target", target, "cmd/batch", "--"]
+    for arg in args {
+      command.push(arg)
+    }
+    let output = @shell.Cmd(moon, command).output(timeout_ms=60000)
+    assert_eq(output.exit_code(), 2)
+  }
+  @fs.write_file(
+    "_build/batch-one.json", "{\"format_version\":1,\"migrations\":[{\"path\":\"fixtures/postgres-migrations-concurrent.sql\",\"execution\":\"separate\"}]}",
+  )
+  let recovery = @shell.Cmd(moon, [
+    "run", "--target", target, "cmd/batch", "--", "_build/batch-one.json", "--json",
+  ]).output(timeout_ms=60000)
+  assert_eq(recovery.exit_code(), 0)
   println(
-    "CLI fixture, JSON/SARIF, determinism and malformed UTF-8 checks passed on \{target}",
+    "Single-file/batch CLI, JSON/SARIF, determinism and malformed input checks passed on \{target}",
   )
 }
