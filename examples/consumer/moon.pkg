@@ -1,0 +1,5 @@
+import {
+  "cn-xjr/migration_lens" @lens,
+}
+
+pkgtype(kind: "executable")

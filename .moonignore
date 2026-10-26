@@ -1,0 +1,28 @@
+# The local source archive is an explicit delivery set. No registry upload is
+# performed by the consumer check. Keep licenses, examples and verification tools.
+/*
+!/*.mbt
+!/moon.mod
+!/moon.pkg
+!/pkg.generated.mbti
+!/LICENSE
+!/README.md
+!/README.mbt.md
+!/THIRD_PARTY.md
+!/CHANGELOG.md
+!/cmd/
+!/cmd/**/
+!/cmd/**/*.mbt
+!/cmd/**/moon.pkg
+!/cmd/**/pkg.generated.mbti
+!/docs/
+!/docs/*.md
+!/fixtures/
+!/fixtures/*.sql
+!/fixtures/*.json
+!/fixtures/RIVER_LICENSE
+!/scripts/
+!/scripts/*.mbtx
+**/_build/
+**/target/
+**/.mooncakes/

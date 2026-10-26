@@ -898,6 +898,15 @@ statement support still depends on the documented grammar/parser subset.
 demonstrates that RELEASE retains a disabled session timeout through COMMIT
 (ML201, exit 1); releasing a savepoint is not a rollback.
 
+## Integrate from a separate MoonBit project
+
+Run `moon run scripts/consumer.mbtx wasm` from this checkout to build a local
+source archive and verify it from an independent consumer module. This checks
+three public-API workflows, archive completeness and a runnable downstream
+executable. Targets `wasm-gc`, `js` and `native` are also accepted. No registry
+publication occurs. See [the consumer guide](docs/consumer.md) for requirements,
+workspace setup and expected output.
+
 ## Development
 
 ```text

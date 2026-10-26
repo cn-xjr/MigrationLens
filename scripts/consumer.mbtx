@@ -1,0 +1,108 @@
+///|
+import {
+  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.5/shell",
+  "moonbitlang/async@0.22.5/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn checked(program : String, args : Array[String]) -> String {
+  let result = @shell.Cmd(program, args).output(timeout_ms=180000) catch {
+    error =>
+      fail("Cannot start consumer-check command \{program}: \{Repr(error)}")
+  }
+  guard result.exit_code() == 0 else {
+    fail(
+      "Consumer check failed for \{program}: \{result.stdout()}\n\{result.stderr()}",
+    )
+  }
+  result.stdout()
+}
+
+///|
+async fn verify(moon : String, target : String, workspace : String) -> Unit {
+  println("Packaging local source; no registry publication")
+  let _ = checked(moon, ["package", "--target-dir", workspace + "/package"])
+  let archive_dir = workspace + "/package/publish"
+  let archives = @fs.readdir(archive_dir).filter(name => name.has_suffix(".zip"))
+  assert_eq(archives.length(), 1)
+  let archive = archive_dir + "/" + archives[0]
+  let windows = @env.get_env_var("OS") == Some("Windows_NT")
+  let listing = if windows {
+    checked("tar", ["-tf", archive])
+  } else {
+    checked("unzip", ["-Z1", archive])
+  }
+  let entries = listing
+    .split("\n")
+    .map(line => line.trim().to_owned().replace(old="\\", new="/"))
+    .to_array()
+  for entry in entries {
+    if entry.is_empty() {
+      continue
+    }
+    assert_true(!entry.has_prefix("/") && !entry.contains(":"))
+    assert_true(!entry.split("/").any(part => part == ".."))
+    assert_true(!entry.contains("_build/") && !entry.contains(".mooncakes/"))
+    assert_true(!entry.has_prefix("examples/") && entry != "AGENTS.md")
+  }
+  for
+    required in [
+      "moon.mod", "moon.pkg", "pkg.generated.mbti", "LICENSE", "THIRD_PARTY.md",
+      "fixtures/RIVER_LICENSE", "scanner.mbt", "cmd/main/main.mbt",
+    ] {
+    assert_true(entries.contains(required), msg="archive missing " + required)
+  }
+  let library = workspace + "/library"
+  let consumer = workspace + "/consumer"
+  @fs.mkdir(library)
+  @fs.mkdir(consumer)
+  let _ = if windows {
+    checked("tar", ["-xf", archive, "-C", library])
+  } else {
+    checked("unzip", ["-q", archive, "-d", library])
+  }
+  for name in ["moon.mod", "moon.pkg", "main.mbt", "consumer_wbtest.mbt"] {
+    @fs.write_file(
+      consumer + "/" + name,
+      @fs.read_file("examples/consumer/" + name),
+    )
+  }
+  @fs.write_file(workspace + "/.gitattributes", "* text=auto eol=lf\n")
+  let _ = checked("git", ["init", "-q", workspace])
+  let _ = checked(moon, ["-C", workspace, "work", "init", "library", "consumer"])
+  println("Compiling, testing and running isolated consumer on " + target)
+  let _ = checked(moon, ["-C", consumer, "fmt", "--check"])
+  let _ = checked(moon, [
+    "-C", consumer, "check", "--target", target, "--deny-warn",
+  ])
+  let tests = checked(moon, [
+    "-C", consumer, "test", "--target", target, "--package", "cn-xjr/migration_lens_consumer",
+    "--deny-warn",
+  ])
+  assert_true(
+    tests.contains("Total tests: 3, passed: 3, failed: 0."),
+    msg=tests,
+  )
+  let output = checked(moon, ["-C", consumer, "run", "--target", target, "."])
+  assert_true(
+    output.contains("MigrationLens downstream consumer: index rollout reviewed"),
+  )
+  println("Packaged consumer checks passed on " + target)
+}
+
+///|
+async fn main {
+  let moon = @env.get_env_var("MIGRATIONLENS_MOON").unwrap_or("moon")
+  let target = @env.args().get(1).unwrap_or("wasm")
+  guard ["wasm", "wasm-gc", "js", "native"].contains(target) else {
+    fail("Invalid target")
+  }
+  // realpath verifies the exact absolute target before recursive cleanup. Only
+  // this fresh, atomically created task-owned temporary directory is removed.
+  let workspace = @fs.realpath(@fs.tmpdir(prefix="migrationlens-consumer"))
+  errdefer println("Failed consumer workspace retained at " + workspace)
+  verify(moon, target, workspace)
+  @fs.rmdir(workspace, recursive=true)
+}

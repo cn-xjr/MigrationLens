@@ -230,3 +230,10 @@ Line-ending and whitespace rules were checked against PostgreSQL REL_18_STABLE
 <https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/parser/scan.l>.
 The CR/CRLF/LF, whitespace and RELEASE timeout regressions/probes are authored
 under Apache-2.0; no upstream implementation or fixture is copied.
+
+The independent consumer module, local archive/workspace check and packaging
+policy are authored under Apache-2.0. They use MoonBit's documented workspace
+and packaging commands, plus system Git and ZIP extraction tools (`tar` on
+Windows, `unzip` on Linux/macOS). These tools are not bundled or redistributed.
+Workspace semantics reference the official MoonBit documentation:
+<https://docs.moonbitlang.com/en/latest/toolchain/moon/workspace.html>.

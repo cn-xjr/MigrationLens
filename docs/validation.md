@@ -76,6 +76,19 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+2026-10-26 packaged downstream validation: `scripts/consumer.mbtx` passed on
+Wasm, Wasm-GC, JavaScript and actual Linux native. Each target builds a local ZIP,
+checks its delivery set/licenses and cache exclusion, extracts it into a fresh
+workspace, then checks and runs three consumer tests and its executable using
+only the public dependency. Source/archive checks and all 163 library/doc tests
+remain passing; public interfaces are unchanged. CI now explicitly builds the
+three portable targets and repeats the consumer workflow on all supported runner
+targets. The local Linux toolchain's existing packaging/formatting helpers needed
+their executable bits restored; WSL also needed the documented unzip prerequisite.
+No package upload, registry publication or release tag was performed.
+The preceding CR-comment fix passed Linux/macOS/Windows and PostgreSQL 18 in
+[run 40349695555](https://github.com/cn-xjr/MigrationLens/actions/runs/40349695555).
+
 2026-10-26 correctness audit: reproduced three failing regressions where a CR
 line ending left following SQL hidden inside a line comment. Fixed comment
 termination at CR/LF and recognized vertical-tab whitespace per PostgreSQL's

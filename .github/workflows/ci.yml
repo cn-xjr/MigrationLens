@@ -23,13 +23,19 @@ jobs:
       - run: moon info
       - run: git diff --exit-code
       - run: moon check --target all --deny-warn
+      - run: moon build --target wasm --deny-warn
+      - run: moon build --target wasm-gc --deny-warn
+      - run: moon build --target js --deny-warn
       - run: moon test --target wasm --deny-warn
       - run: moon test --target wasm-gc --deny-warn
       - run: moon test --target js --deny-warn
-      - run: moon fmt --check scripts/e2e.mbtx scripts/postgres_probe.mbtx
+      - run: moon fmt --check scripts/e2e.mbtx scripts/postgres_probe.mbtx scripts/consumer.mbtx
       - run: moon run scripts/e2e.mbtx wasm
       - run: moon run scripts/e2e.mbtx wasm-gc
       - run: moon run scripts/e2e.mbtx js
+      - run: moon run scripts/consumer.mbtx wasm
+      - run: moon run scripts/consumer.mbtx wasm-gc
+      - run: moon run scripts/consumer.mbtx js
       - run: moon run cmd/main -- fixtures/postgres-migrations-concurrent.sql separate
       - if: runner.os != 'Windows'
         run: moon test --target native --deny-warn
@@ -37,6 +43,8 @@ jobs:
         run: moon run --target native cmd/main -- fixtures/postgres-migrations-concurrent.sql separate
       - if: runner.os != 'Windows'
         run: moon run scripts/e2e.mbtx native
+      - if: runner.os != 'Windows'
+        run: moon run scripts/consumer.mbtx native
   postgres:
     runs-on: ubuntu-latest
     services:
