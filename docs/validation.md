@@ -76,6 +76,18 @@ concurrent-index transaction conflicts require 25001, not merely any failure.
 
 ## Evidence policy
 
+2026-10-26 correctness audit: reproduced three failing regressions where a CR
+line ending left following SQL hidden inside a line comment. Fixed comment
+termination at CR/LF and recognized vertical-tab whitespace per PostgreSQL's
+scanner. All 163 tests passed on Wasm, Wasm-GC, JavaScript and actual Linux
+native; strict all-target compilation, generated interfaces and script checks
+passed. The full Wasm CLI suite exercised an actual CR-only UTF-8 file. The
+RELEASE fixture ran as a native process with expected ML201/exit 1. RELEASE
+state restoration was inspected and already correct; four new tests strengthen
+session/local changes, inclusive policy bounds, nested release and outer rollback.
+No RELEASE implementation fix is claimed. New PostgreSQL probes compile locally
+and await this commit's CI. No package registry publication was performed.
+
 SET NOT NULL: all 155 unit/documentation tests passed on Wasm, Wasm-GC,
 JavaScript and actual Linux native with October 16 stable. Full portable CLI
 suites passed; the documented proof-validation/promotion/index-attachment

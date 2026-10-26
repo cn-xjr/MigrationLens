@@ -49,14 +49,14 @@ fn scan(source : String) -> Scan {
   let mut failed = false
   while i < n && !failed {
     let c = units[i]
-    if c == 32 || c == 9 || c == 10 || c == 13 || c == 12 {
+    if c == 32 || c == 9 || c == 10 || c == 11 || c == 12 || c == 13 {
       if start >= 0 {
         parser.write_stringview(source[i:i + 1])
       }
       i += 1
     } else if c == 45 && source.get(i + 1) == Some(45) {
       let begin = i
-      while i < n && units[i] != 10 {
+      while i < n && units[i] != 10 && units[i] != 13 {
         i += 1
       }
       if start >= 0 {

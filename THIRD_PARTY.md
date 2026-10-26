@@ -224,3 +224,9 @@ ALTER TABLE reference above (PostgreSQL License). The classifier, diagnostics,
 tests, historical-null/repair/locking probes and `fixtures/set-not-null.sql` are
 authored under Apache-2.0. No upstream implementation or SQL example is copied;
 the project does not claim measured scan avoidance or performance improvement.
+
+Line-ending and whitespace rules were checked against PostgreSQL REL_18_STABLE
+`src/backend/parser/scan.l` (PostgreSQL License):
+<https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/parser/scan.l>.
+The CR/CRLF/LF, whitespace and RELEASE timeout regressions/probes are authored
+under Apache-2.0; no upstream implementation or fixture is copied.

@@ -563,6 +563,18 @@ async fn main {
   let _ = successful("remove nullability probe table", [
     "DROP TABLE ml_probe_nullability",
   ])
+  let cr_comment = successful("CR terminates a server line comment", [
+    "-- server comment\rSELECT 7", "SELECT\u000b8",
+  ])
+  assert_eq(cr_comment.stdout().trim().to_owned(), "7\n8")
+  let release_session = successful(
+    "RELEASE keeps disabled session timeout through commit",
+    [
+      "SET lock_timeout=100", "BEGIN", "SAVEPOINT budget", "SET SESSION lock_timeout=0",
+      "RELEASE SAVEPOINT budget", "COMMIT", "SHOW lock_timeout",
+    ],
+  )
+  assert_eq(release_session.stdout().trim().to_owned(), "0")
   let _ = successful("remove disposable probe tables", [
     "DROP TABLE migrationlens_probe", "DROP TABLE ml_probe_parent",
   ])

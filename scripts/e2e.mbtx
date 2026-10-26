@@ -52,6 +52,7 @@ async fn main {
     ("fixtures/add-foreign-key.sql", "simple", true, 1),
     ("fixtures/set-not-null.sql", "separate", true, 1),
     ("fixtures/set-not-null.sql", "simple", true, 1),
+    ("fixtures/release-timeout.sql", "separate", true, 1),
     ("fixtures/river-006-bulk-unique.sql", "separate", false, 2),
   ]
   for (file, mode, timeout, expected) in cases {
@@ -165,6 +166,10 @@ async fn main {
       }
       assert_eq(output.stdout().contains("ML101"), mode == "simple")
     }
+    if file == "fixtures/release-timeout.sql" {
+      assert_true(output.stdout().contains("ML201"))
+      assert_true(!output.stdout().contains("ML003"))
+    }
     if file == "fixtures/river-006-bulk-unique.sql" {
       assert_true(output.stdout().contains("ML003"))
     }
@@ -212,6 +217,14 @@ async fn main {
       }
     }
   }
+  @fs.write_file("_build/cr-comment.sql", "-- CR comment\rDROP INDEX old_idx;")
+  let cr_comment = @shell.Cmd(moon, [
+    "run", "--target", target, "cmd/main", "--", "_build/cr-comment.sql", "separate",
+    "--json",
+  ]).output(timeout_ms=60000)
+  assert_eq(cr_comment.exit_code(), 1)
+  assert_true(cr_comment.stdout().contains("ML100"))
+  assert_true(!cr_comment.stdout().contains("ML003"))
   @fs.write_file(
     "_build/comparison-0.json",
     @fs.read_file("_build/saved-report-0.json").text(),

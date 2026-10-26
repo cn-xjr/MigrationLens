@@ -890,6 +890,14 @@ additionally reports ML101 for the index build. The CHECK already exists by
 assumption; CHECK installation and data repair are outside the covered subset.
 Semantics follow [PostgreSQL 18 ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html).
 
+Line comments terminate at LF or CR, including CRLF; a CR-only file cannot hide
+the following statement inside a comment. PostgreSQL space, tab, vertical tab,
+form feed and line-break separators are recognized by the scanner. Individual
+statement support still depends on the documented grammar/parser subset.
+`moon run cmd/main -- fixtures/release-timeout.sql separate --require-lock-timeout --json`
+demonstrates that RELEASE retains a disabled session timeout through COMMIT
+(ML201, exit 1); releasing a savepoint is not a rollback.
+
 ## Development
 
 ```text
