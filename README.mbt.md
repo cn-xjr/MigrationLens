@@ -141,12 +141,14 @@ new findings; their full reports preserve accepted findings.
 | Entry point | Task |
 | --- | --- |
 | `cmd/main` | Review a UTF-8 SQL file with explicit execution mode |
+| `cmd/ci` | Save full artifacts, check provenance and apply an optional baseline gate |
 | `cmd/batch` | Review a strict JSON manifest with independent per-file context |
 | `cmd/report`, `cmd/report_batch` | Restore saved archives and render text/JSON/SARIF |
 | `cmd/compare`, `cmd/compare_batch` | Compare trusted complete baseline/current archives |
 
 - [Detailed syntax, flags, formats and examples](docs/reference.mbt.md)
 - [Separate-module consumer and packaging check](docs/consumer.md)
+- [Complete CI workflow and downstream Actions example](docs/ci.md)
 - [Design, differentiation and scope](docs/design.md)
 - [Current validation matrix and reproduction](docs/validation.md)
 - [Maintainer handoff](docs/maintaining.md) and [unreleased changes](CHANGELOG.md)

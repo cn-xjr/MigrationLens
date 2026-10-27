@@ -1,0 +1,6 @@
+{
+  "format_version": 1,
+  "migrations": [
+    { "path": "fixtures/replace-index.sql", "execution": "separate", "require_lock_timeout": true }
+  ]
+}

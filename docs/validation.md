@@ -93,6 +93,13 @@ tests or measured proof of scan avoidance.
 
 ## Evidence boundaries
 
+The complete `cmd/ci` workflow is covered on all supported targets, including
+finding/incomplete exits, preserved full reports, baseline acceptance/rejection,
+strict UTF-8 failure, fresh-output protection, determinism and recovery. The
+JavaScript test additionally launches the built CLI from a separate application's
+directory. The manifest parser and its existing tests are shared internally with
+cmd/batch; the old command's contract is unchanged. See [CI integration](ci.md).
+
 The v2 archive adds automatic project/tool/rule/context compatibility checks.
 V1 encoding/decoding and legacy comparison behavior are preserved. New tests
 cover mismatches, strict restoration, duplicate multiplicity, independent

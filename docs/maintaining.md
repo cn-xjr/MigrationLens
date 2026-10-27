@@ -26,6 +26,7 @@ moon fmt --check scripts/e2e.mbtx scripts/postgres_probe.mbtx scripts/consumer.m
 moon check scripts/e2e.mbtx --deny-warn
 moon check scripts/postgres_probe.mbtx --deny-warn
 moon check scripts/consumer.mbtx --deny-warn
+moon check scripts/ci_e2e.mbtx --deny-warn
 ```
 
 Run native commands on Linux/macOS. Windows portable coverage does not establish
@@ -41,6 +42,10 @@ moon run scripts/consumer.mbtx wasm
 moon run scripts/consumer.mbtx wasm-gc
 moon run scripts/consumer.mbtx js
 moon run scripts/consumer.mbtx native
+moon run scripts/ci_e2e.mbtx wasm
+moon run scripts/ci_e2e.mbtx wasm-gc
+moon run scripts/ci_e2e.mbtx js
+moon run scripts/ci_e2e.mbtx native
 ```
 
 Run these sequentially from a single checkout: CLI suites write shared _build

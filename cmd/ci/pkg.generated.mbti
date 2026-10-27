@@ -1,0 +1,13 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "cn-xjr/migration_lens/cmd/ci"
+
+// Values
+
+// Errors
+type ReviewFailure
+
+// Types and methods
+
+// Type aliases
+
+// Traits

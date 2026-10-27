@@ -1,5 +1,5 @@
 ///|
-priv struct Entry {
+pub struct Entry {
   path : String
   execution : @lens.Execution
   initial_transaction : Bool
@@ -8,13 +8,13 @@ priv struct Entry {
 }
 
 ///|
-priv struct Manifest {
+pub struct Manifest {
   entries : Array[Entry]
   initial_lock_timeout_ms : Int32?
 }
 
 ///|
-fn parse_entries(source : String) -> Result[Manifest, String] {
+pub fn parse_entries(source : String) -> Result[Manifest, String] {
   if source.length() > 1000000 {
     return Err("Manifest exceeds 1,000,000 UTF-16 units")
   }

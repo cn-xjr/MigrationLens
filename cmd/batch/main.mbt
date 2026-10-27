@@ -21,7 +21,7 @@ fn main {
       return
     }
   }
-  let manifest = match parse_entries(source) {
+  let manifest = match @manifest.parse_entries(source) {
     Ok(manifest) => manifest
     Err(e) => {
       input_failure(e)

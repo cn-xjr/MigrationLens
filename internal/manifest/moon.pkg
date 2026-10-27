@@ -1,0 +1,4 @@
+import {
+  "cn-xjr/migration_lens" @lens,
+  "moonbitlang/core/json",
+}

@@ -1,0 +1,33 @@
+# Copy into your application's .github/workflows/, then adapt the project ID
+# and manifest path. Pin the tool checkout to a reviewed revision for production.
+name: Migration review
+on: [pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: cn-xjr/MigrationLens
+          ref: main
+          path: .tools/migrationlens
+      - uses: hustcer/setup-moonbit@v1
+        with:
+          version: '0.10.16+b1a0e846e'
+          core-version: '0.10.16+b1a0e846e'
+      - run: moon -C .tools/migrationlens update
+      - run: moon -C .tools/migrationlens run --target js --build-only cmd/ci
+      # Run from the application root so manifest paths refer to this project.
+      # Append ci/accepted-baseline.json to use a trusted version-2 baseline.
+      - run: node .tools/migrationlens/_build/js/debug/build/cmd/ci/ci.js my-service ci/migrations.json review-artifacts
+      - name: Preserve diagnostics even when the review gate fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-review
+          path: review-artifacts/
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,0 +1,29 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "cn-xjr/migration_lens/internal/manifest"
+
+import {
+  "cn-xjr/migration_lens",
+}
+
+// Values
+pub fn parse_entries(String) -> Result[Manifest, String]
+
+// Errors
+
+// Types and methods
+pub struct Entry {
+  path : String
+  execution : @migration_lens.Execution
+  initial_transaction : Bool
+  require_lock_timeout : Bool
+  maximum : Int32?
+}
+
+pub struct Manifest {
+  entries : Array[Entry]
+  initial_lock_timeout_ms : Int32?
+}
+
+// Type aliases
+
+// Traits

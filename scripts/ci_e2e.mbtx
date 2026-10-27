@@ -1,0 +1,240 @@
+///|
+import {
+  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.5/shell",
+  "moonbitlang/async@0.22.5/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn run_ci(
+  moon : String,
+  target : String,
+  manifest : String,
+  output : String,
+  expected : Int32,
+  baseline? : String,
+  project~ : String = "ci-example",
+) -> Unit {
+  let args = [
+    "run", "--target", target, "cmd/ci", "--", project, manifest, output,
+  ]
+  if baseline is Some(path) {
+    args.push(path)
+  }
+  let result = @shell.Cmd(moon, args).output(timeout_ms=180000)
+  assert_eq(result.exit_code(), expected, msg=result.stdout() + result.stderr())
+  let status = @json.parse(@fs.read_file(output + "/status.json").text())
+  assert_true(status is { "exit_code": code, .. } && code == Json(expected))
+}
+
+///|
+async fn manifest(path : String, sql_path : String, mode : String) -> Unit {
+  let data : Json = {
+    "format_version": 1,
+    "migrations": [{ "path": sql_path, "execution": mode }],
+  }
+  @fs.write_file(path, data.stringify())
+}
+
+///|
+async fn verify(moon : String, target : String, workspace : String) -> Unit {
+  let input = workspace + "/input.json"
+  manifest(input, "fixtures/postgres-migrations-concurrent.sql", "separate")
+  let clean = workspace + "/clean"
+  run_ci(moon, target, input, clean, 0)
+  let warning = workspace + "/warning"
+  run_ci(moon, target, "fixtures/ci-review-manifest.json", warning, 1)
+  for output in [clean, warning] {
+    for
+      name in ["archive.json", "report.txt", "report.sarif.json", "status.json"] {
+      assert_true(@fs.exists(output + "/" + name), msg=output + "/" + name)
+    }
+    assert_true(
+      @json.parse(@fs.read_file(output + "/archive.json").text())
+      is { "format_version": 2, "origin": { "project": "ci-example", .. }, .. },
+    )
+  }
+  let again = workspace + "/again"
+  run_ci(moon, target, "fixtures/ci-review-manifest.json", again, 1)
+  for name in ["archive.json", "report.txt", "report.sarif.json", "status.json"] {
+    assert_eq(
+      @fs.read_file(warning + "/" + name).text(),
+      @fs.read_file(again + "/" + name).text(),
+    )
+  }
+  let accepted = workspace + "/accepted"
+  run_ci(
+    moon,
+    target,
+    "fixtures/ci-review-manifest.json",
+    accepted,
+    0,
+    baseline=warning + "/archive.json",
+  )
+  assert_true(
+    @json.parse(@fs.read_file(accepted + "/status.json").text())
+    is { "absolute_exit_code": 1, "exit_code": 0, "baseline_used": true, .. },
+  )
+  assert_true(
+    @fs.exists(accepted + "/delta.json") && @fs.exists(accepted + "/delta.txt"),
+  )
+  run_ci(
+    moon,
+    target,
+    "fixtures/ci-review-manifest.json",
+    workspace + "/new",
+    1,
+    baseline=clean + "/archive.json",
+  )
+  manifest(input, "fixtures/river-006-bulk-unique.sql", "separate")
+  let incomplete = workspace + "/incomplete"
+  run_ci(moon, target, input, incomplete, 2)
+  assert_true(
+    @fs.exists(incomplete + "/archive.json") &&
+    @fs.exists(incomplete + "/report.sarif.json"),
+  )
+  assert_true(
+    @json.parse(@fs.read_file(incomplete + "/report.sarif.json").text())
+    is {
+      "runs": [{ "invocations": [{ "executionSuccessful": false, .. }], .. }],
+      ..
+    },
+  )
+  // A baseline mismatch must leave the current absolute evidence available.
+  manifest(input, "fixtures/batch-indexes.sql", "separate")
+  let separate = workspace + "/separate"
+  run_ci(moon, target, input, separate, 0)
+  manifest(input, "fixtures/batch-indexes.sql", "simple")
+  let changed = workspace + "/changed"
+  run_ci(moon, target, input, changed, 2, baseline=separate + "/archive.json")
+  assert_true(
+    @fs.exists(changed + "/archive.json") &&
+    @fs.exists(changed + "/report.sarif.json"),
+  )
+  assert_true(!@fs.exists(changed + "/delta.json"))
+  run_ci(
+    moon,
+    target,
+    "fixtures/ci-review-manifest.json",
+    workspace + "/project-mismatch",
+    2,
+    baseline=warning + "/archive.json",
+    project="different",
+  )
+  let legacy = workspace + "/legacy.json"
+  let saved = @json.parse(@fs.read_file(warning + "/archive.json").text())
+  guard saved is { "batch": batch, .. } else { fail("batch") }
+  @fs.write_file(legacy, batch.stringify())
+  run_ci(
+    moon,
+    target,
+    "fixtures/ci-review-manifest.json",
+    workspace + "/legacy",
+    2,
+    baseline=legacy,
+  )
+  for
+    (label, source) in [
+      ("bad-json", "{}"),
+      (
+        "missing-file", "{\"format_version\":1,\"migrations\":[{\"path\":\"_build/no-ci-file.sql\",\"execution\":\"separate\"}]}",
+      ),
+    ] {
+    @fs.write_file(input, source)
+    let output = workspace + "/" + label
+    run_ci(moon, target, input, output, 2)
+    assert_true(!@fs.exists(output + "/archive.json"))
+  }
+  @fs.write_file(input, b"\xff")
+  run_ci(moon, target, input, workspace + "/bad-utf8", 2)
+  @fs.mkdir("_build", allow_exist=true)
+  @fs.write_file("_build/ci-malformed-input.sql", b"\xff")
+  manifest(input, "_build/ci-malformed-input.sql", "separate")
+  run_ci(moon, target, input, workspace + "/bad-sql-utf8", 2)
+  // Never reuse a previous successful directory, even for a failing input.
+  let old_status = @fs.read_file(clean + "/status.json").text()
+  let reused = @shell.Cmd(moon, [
+    "run", "--target", target, "cmd/ci", "--", "ci-example", input, clean,
+  ]).output(timeout_ms=180000)
+  assert_eq(reused.exit_code(), 2)
+  assert_eq(@fs.read_file(clean + "/status.json").text(), old_status)
+  let old_file = @fs.read_file(legacy).text()
+  let file_output = @shell.Cmd(moon, [
+    "run", "--target", target, "cmd/ci", "--", "ci-example", input, legacy,
+  ]).output(timeout_ms=180000)
+  assert_eq(file_output.exit_code(), 2)
+  assert_eq(@fs.read_file(legacy).text(), old_file)
+  run_ci(
+    moon,
+    target,
+    "fixtures/ci-review-manifest.json",
+    workspace + "/recovery",
+    0,
+    baseline=warning + "/archive.json",
+  )
+  if target == "js" {
+    // Run a built CLI from an independent application root. Its manifest path
+    // labels must resolve there, not inside MigrationLens's tool checkout.
+    let executable = @fs.realpath("_build/js/debug/build/cmd/ci/ci.js")
+    let app = workspace + "/application"
+    @fs.mkdir(app)
+    let sql = @fs.read_file("fixtures/replace-index.sql").text()
+    @fs.write_file(app + "/migration.sql", sql)
+    manifest(app + "/manifest.json", "migration.sql", "separate")
+    let direct = @shell.Cmd(
+      "node",
+      [executable, "external-app", "manifest.json", "reports"],
+      cwd=app,
+    ).output(timeout_ms=180000)
+    assert_eq(direct.exit_code(), 1, msg=direct.stdout() + direct.stderr())
+    let archived = @json.parse(
+      @fs.read_file(app + "/reports/archive.json").text(),
+    )
+    assert_true(
+      archived
+      is {
+        "origin": { "project": "external-app", .. },
+        "batch": {
+          "files": [
+            {
+              "path": "migration.sql",
+              "report": { "source": original, .. },
+              ..
+            },
+          ],
+          ..
+        },
+        ..
+      } &&
+      original == Json(sql),
+    )
+  }
+  for
+    (output, label) in [
+      (clean, "clean"),
+      (warning, "warning"),
+      (incomplete, "incomplete"),
+    ] {
+    @fs.write_file(
+      "_build/ci-sarif-" + label + ".json",
+      @fs.read_file(output + "/report.sarif.json"),
+    )
+  }
+  println("CI workflow checks passed on " + target)
+}
+
+///|
+async fn main {
+  let moon = @env.get_env_var("MIGRATIONLENS_MOON").unwrap_or("moon")
+  let target = @env.args().get(1).unwrap_or("wasm")
+  guard ["wasm", "wasm-gc", "js", "native"].contains(target) else {
+    fail("Invalid target")
+  }
+  // Verify the exact absolute task-owned directory before recursive cleanup.
+  let workspace = @fs.realpath(@fs.tmpdir(prefix="migrationlens-ci"))
+  errdefer println("Failed CI workspace retained at " + workspace)
+  verify(moon, target, workspace)
+  @fs.rmdir(workspace, recursive=true)
+}

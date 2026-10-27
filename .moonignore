@@ -15,8 +15,14 @@
 !/cmd/**/*.mbt
 !/cmd/**/moon.pkg
 !/cmd/**/pkg.generated.mbti
+!/internal/
+!/internal/**/
+!/internal/**/*.mbt
+!/internal/**/moon.pkg
+!/internal/**/pkg.generated.mbti
 !/docs/
 !/docs/*.md
+!/docs/*.yml
 !/docs/moon.pkg
 !/docs/pkg.generated.mbti
 !/fixtures/

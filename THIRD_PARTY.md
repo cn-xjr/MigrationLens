@@ -6,6 +6,11 @@ the copied SQL fixtures below. No Squawk implementation is copied.
 The v2 provenance archive, compatibility checks, tests and examples are authored
 under Apache-2.0. They extend this repository's report contract; no external
 archive schema, comparison implementation or test suite is copied.
+The CI command, shared manifest package, end-to-end tests and workflow example
+are also authored under Apache-2.0. The example references GitHub's official
+artifact/status documentation; no workflow or documentation text is copied.
+`actions/upload-artifact` (MIT) is a hosted validation/integration tool, not
+a bundled runtime dependency: <https://github.com/actions/upload-artifact>.
 
 ## Dependencies
 
