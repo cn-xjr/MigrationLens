@@ -163,7 +163,7 @@ new findings; their full reports preserve accepted findings.
 - [Current validation matrix and reproduction](docs/validation.md)
 - [Seeded PostgreSQL differential tests and failure replay](docs/differential.md)
 - [Pinned SARIF schema validation and GitHub profile](docs/sarif-validation.md)
-- [Maintainer handoff](docs/maintaining.md) and [unreleased changes](CHANGELOG.md)
+- [Maintainer handoff](docs/maintaining.md) and [changelog](CHANGELOG.md)
 - [Generated public API](pkg.generated.mbti) and [sources/licenses](THIRD_PARTY.md)
 
 ## Develop and verify

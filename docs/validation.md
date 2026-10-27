@@ -19,7 +19,57 @@ to those earlier revisions.
 | PostgreSQL semantics | Actual PostgreSQL 18 CI probes pass; no local database execution claimed |
 | SARIF output | Ten generated documents validated against the pinned OASIS 2.1.0 schema, plus static GitHub profile and negative tests |
 | Windows native runtime | Not verified; local MSVC/Windows SDK unavailable |
-| Registry publication | Release preparation passed; upload and registry consumer verification pending |
+| Registry publication | `cn-xjr/migration_lens@0.1.0` published; actual registry consumer passes on all four targets |
+
+## Mooncakes 0.1.0 release verification
+
+Published on 2026-10-28 (UTC+8) from
+[`c64e378f088820bd1bb3d808f1504e159fccf481`](https://github.com/cn-xjr/MigrationLens/commit/c64e378f088820bd1bb3d808f1504e159fccf481).
+All four jobs in [release-source CI run 40567073006](https://github.com/cn-xjr/MigrationLens/actions/runs/40567073006)
+passed before upload. `moon publish` returned HTTP 200. The live
+[Mooncakes page](https://mooncakes.io/docs/cn-xjr/migration_lens) shows version
+0.1.0, the README and the generated public API.
+
+`moon view cn-xjr/migration_lens@0.1.0 --json` confirmed the exact version,
+Apache-2.0 license, repository and dependencies. Its registry checksum matched
+the uploaded ZIP's SHA-256:
+
+```text
+35000b4a9430dbf87c7def4eb597d997d7f9c2c9903b54a11300821a6f3f3185
+```
+
+The four files from `examples/consumer` were copied into a fresh system temporary
+directory outside the repository. No `moon.work` or local library override was
+created. `moon add cn-xjr/migration_lens@0.1.0` fetched the published dependency;
+strict four-target compilation passed. Downloaded module metadata, generated
+interface, scanner, archive implementation, README and license/attribution files
+matched the release source. Four consumer tests and the actual example executable
+passed on Wasm, Wasm-GC and JavaScript on Windows, and native on Linux via WSL
+Ubuntu 22.04. The native executable printed the expected index-rollout marker;
+this was runtime execution, not only compilation. Windows native remains unverified.
+
+To reproduce, copy `examples/consumer` outside all workspaces, then run:
+
+```text
+moon add cn-xjr/migration_lens@0.1.0
+moon check --target all --deny-warn
+moon test --target wasm --deny-warn
+moon run --target wasm .
+moon test --target wasm-gc --deny-warn
+moon run --target wasm-gc .
+moon test --target js --deny-warn
+moon run --target js .
+moon test --target native --deny-warn
+moon run --target native .
+```
+
+Run native on Linux/macOS with a working C compiler. Each test command expects
+four passes; each executable prints
+`MigrationLens downstream consumer: index rollout reviewed`. No database or
+publisher account is needed. The published ZIP is immutable and contains the
+pre-upload evidence snapshot; this Git document records the subsequent checks.
+
+## Earlier source validation
 
 Public evidence before this documentation update:
 
