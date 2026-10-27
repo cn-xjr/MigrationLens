@@ -42,8 +42,8 @@ runs its executable. The tests exercise three downstream tasks:
 Expected final output: `Packaged consumer checks passed on <target>` (exit 0).
 The example itself prints `MigrationLens downstream consumer: index rollout reviewed`.
 An error keeps its temporary workspace for inspection; a successful run removes
-only the fresh directory it created. Generated files are not written into the
-source checkout. The workspace explicitly sets LF Git attributes for Windows.
+only the fresh directory it created. Consumer build/workspace files stay outside
+the source checkout. The workspace explicitly sets LF Git attributes for Windows.
 
 ## Adapt the example for your tool
 

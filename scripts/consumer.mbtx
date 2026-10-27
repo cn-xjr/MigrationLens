@@ -50,7 +50,8 @@ async fn verify(moon : String, target : String, workspace : String) -> Unit {
   for
     required in [
       "moon.mod", "moon.pkg", "pkg.generated.mbti", "LICENSE", "THIRD_PARTY.md",
-      "fixtures/RIVER_LICENSE", "scanner.mbt", "cmd/main/main.mbt",
+      "fixtures/RIVER_LICENSE", "scanner.mbt", "cmd/main/main.mbt", "README.mbt.md",
+      "docs/moon.pkg", "docs/pkg.generated.mbti", "docs/reference.mbt.md",
     ] {
     assert_true(entries.contains(required), msg="archive missing " + required)
   }
@@ -63,6 +64,11 @@ async fn verify(moon : String, target : String, workspace : String) -> Unit {
   } else {
     checked("unzip", ["-q", archive, "-d", library])
   }
+  assert_eq(
+    @fs.read_file(library + "/README.md").text(),
+    @fs.read_file(library + "/README.mbt.md").text(),
+    msg="Packaged README must match its tested Markdown source",
+  )
   for name in ["moon.mod", "moon.pkg", "main.mbt", "consumer_wbtest.mbt"] {
     @fs.write_file(
       consumer + "/" + name,

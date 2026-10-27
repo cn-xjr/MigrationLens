@@ -1,0 +1,3 @@
+import {
+  "cn-xjr/migration_lens",
+} for "test"

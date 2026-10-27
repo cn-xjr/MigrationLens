@@ -17,6 +17,8 @@
 !/cmd/**/pkg.generated.mbti
 !/docs/
 !/docs/*.md
+!/docs/moon.pkg
+!/docs/pkg.generated.mbti
 !/fixtures/
 !/fixtures/*.sql
 !/fixtures/*.json
