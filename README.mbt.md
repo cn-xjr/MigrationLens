@@ -7,8 +7,18 @@ authors. MigrationLens combines SQL with the runner's dispatch, transaction and
 timeout context, then reports actionable findings with original source ranges.
 Unsupported input stays visible and makes the review incomplete.
 
-The source is Apache-2.0. Version `0.1.0` is development metadata; the project is
-**not published to Mooncakes**. Use a source checkout or a local workspace.
+The source is Apache-2.0. The library coordinate is
+[`cn-xjr/migration_lens@0.1.0`](https://mooncakes.io/docs/cn-xjr/migration_lens).
+
+From your own MoonBit module, add the dependency:
+
+```text
+moon add cn-xjr/migration_lens@0.1.0
+```
+
+Then import `"cn-xjr/migration_lens" @migration_lens` in your `moon.pkg`.
+See [the consumer guide](docs/consumer.md) for the complete integration and
+[validation evidence](docs/validation.md) for observed release checks.
 
 ## Try a real migration
 

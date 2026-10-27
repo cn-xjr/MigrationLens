@@ -1,9 +1,22 @@
 # Use MigrationLens from another MoonBit module
 
-The project remains unpublished. This workflow uses a local source archive and
-a `moon.work` workspace; it does not upload to Mooncakes, require an account,
-or pretend an unpublished registry version can be installed with `moon add`.
-Normal dependency resolution can download the project's declared dependencies.
+## Install the library
+
+From your own MoonBit module, run:
+
+```text
+moon add cn-xjr/migration_lens@0.1.0
+```
+
+Add `"cn-xjr/migration_lens" @lens` to the import block in your `moon.pkg`.
+The examples in `examples/consumer/main.mbt` and `consumer_wbtest.mbt` use this
+alias and only the public API. Use the pinned compiler/core release documented
+in the README; JavaScript also requires Node.js, and native requires a C compiler.
+
+The source-archive workflow below is a separate maintainer check. It uses a local
+ZIP and workspace without publishing; normal dependency resolution can still
+download declared dependencies. See [validation](validation.md) for the actual
+registry installation evidence.
 
 ## Reproduce the packaged consumer
 
@@ -52,8 +65,9 @@ the source checkout. The workspace explicitly sets LF Git attributes for Windows
 Copy `examples/consumer` into your own development workspace. Its module imports
 `cn-xjr/migration_lens@0.1.0` in `moon.mod`; its `moon.pkg` imports
 `cn-xjr/migration_lens` as `@lens`. Declare both the local library and your tool
-as workspace members. The workspace resolves this name locally, without a
-registry release. See the official
+as workspace members when testing a local checkout. The workspace resolves this
+name locally; omit that workspace override to test the registry dependency.
+See the official
 [MoonBit workspace guide](https://docs.moonbitlang.com/en/latest/toolchain/moon/workspace.html).
 
 `review_sql` and `review_migrations` are offline analyses. `complete=true`

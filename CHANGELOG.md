@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased — source version 0.1.0
+## 0.1.0 — 2026-10-28
 
-No registry publication or release tag has been made. This section describes
-implemented source capabilities, not a published package.
+Initial package release. The capabilities below are implemented; registry
+installation evidence is recorded separately in [validation](docs/validation.md).
 
 - Added version-2 review archives with explicit project/tool/rule/database
   provenance, preserved execution/timeout facts and checked baseline comparison.

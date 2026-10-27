@@ -1,8 +1,8 @@
 # Maintainer handoff
 
-The repository is an unpublished source distribution. Verification below creates
-local ZIP archives and performs no registry upload. No release workflow publishes
-a package or creates a release tag.
+Verification below creates local ZIP archives and performs no registry upload.
+Publishing is a separate, authenticated maintainer action; CI does not publish
+packages or create release tags.
 
 ## Reproduce a candidate
 
@@ -86,6 +86,34 @@ e2e suite intentionally checks CLI exits 1 and 2 as expected outcomes.
 that ZIP and compiles an independent dependency; it excludes the original
 library checkout from the workspace. The consumer template remains in Git,
 outside the library ZIP. Failed consumer workspaces are retained for diagnosis.
+
+## Publish a reviewed version
+
+Finish the checks above and inspect the package contents before uploading.
+Check `moon whoami`: this module is published under the Mooncakes account
+`cn-xjr`, which is separate from Git author identity and browser sign-in state.
+The module version and `ReviewArchive` tool version must agree. Never overwrite
+an existing release; use a new semantic version for subsequent changes.
+
+```text
+moon view cn-xjr/migration_lens --versions --json
+moon whoami
+moon publish --dry-run
+moon publish
+moon view cn-xjr/migration_lens@0.1.0 --json
+```
+
+The initial release can return 404 for the first command. With the pinned CLI,
+a dry run can report a nonzero exit despite the service returning HTTP 202 and
+`Dry run completed successfully. No changes were made.` Inspect that response;
+do not interpret it as an upload or suppress errors from an actual publication.
+
+After publishing, copy `examples/consumer` into a fresh directory outside all
+MoonBit workspaces. Run `moon add cn-xjr/migration_lens@0.1.0`, then `moon check`,
+`moon test` and `moon run .` for Wasm, Wasm-GC and JavaScript. Also execute native
+on a system with a working C compiler. Do not create a local library workspace
+override: this check must download the release from Mooncakes. Record the exact
+version, registry result and observed runtime results in validation.md.
 
 ## Record a verifiable result
 

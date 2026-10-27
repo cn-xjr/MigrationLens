@@ -662,9 +662,9 @@ Local schema validation does not establish acceptance by a particular hosted
 code scanning service; no upload, hosting account or private infrastructure is
 needed to generate and inspect these reports.
 
-This is an unpublished source checkout, not a Mooncakes release. Run the examples
-from this repository; no `moon add` installation is claimed yet. The JS CLI uses
-Node.js. Browser execution and macOS execution have not been tested locally.
+For library installation, see [the consumer guide](consumer.md). Run the CLI
+examples from this repository. The JS CLI uses Node.js. Browser execution and
+macOS execution have not been tested locally; CI exercises macOS.
 
 Exit codes: 0 = no findings within the documented rule set; 1 = findings on
 covered input; 2 = incomplete analysis or CLI input failure. CI should reject

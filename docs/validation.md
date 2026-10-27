@@ -19,7 +19,7 @@ to those earlier revisions.
 | PostgreSQL semantics | Actual PostgreSQL 18 CI probes pass; no local database execution claimed |
 | SARIF output | Ten generated documents validated against the pinned OASIS 2.1.0 schema, plus static GitHub profile and negative tests |
 | Windows native runtime | Not verified; local MSVC/Windows SDK unavailable |
-| Registry publication | Not performed; local ZIP generation only |
+| Registry publication | Release preparation passed; upload and registry consumer verification pending |
 
 Public evidence before this documentation update:
 
