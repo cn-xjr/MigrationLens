@@ -905,7 +905,7 @@ demonstrates that RELEASE retains a disabled session timeout through COMMIT
 
 Run `moon run scripts/consumer.mbtx wasm` from this checkout to build a local
 source archive and verify it from an independent consumer module. This checks
-three public-API workflows, archive completeness and a runnable downstream
+four public-API workflows, archive completeness and a runnable downstream
 executable. Targets `wasm-gc`, `js` and `native` are also accepted. No registry
 publication occurs. See [the consumer guide](consumer.md) for requirements,
 workspace setup and expected output.

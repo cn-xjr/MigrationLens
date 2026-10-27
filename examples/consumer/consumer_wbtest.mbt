@@ -64,3 +64,25 @@ test "a CI consumer restores batch archives and gates only newly introduced find
   assert_eq(@lens.compare_batches(restored, restored).unwrap().exit_code(), 0)
   assert_true(restored.to_sarif() is Ok(_))
 }
+
+///|
+test "a downstream CI consumer checks provenance and rejects changed dispatch" {
+  let before = @lens.ReviewArchive::review(
+    "consumer",
+    [
+      @lens.Migration::new(
+        "001.sql",
+        "DROP INDEX a;",
+        execution=SeparateStatements,
+      ),
+    ][:],
+  ).unwrap()
+  let saved = @lens.ReviewArchive::parse_json(before.to_json().stringify()).unwrap()
+  assert_eq(@lens.compare_archives(before, saved).unwrap().exit_code(), 0)
+  let changed = @lens.ReviewArchive::review(
+    "consumer",
+    [@lens.Migration::new("001.sql", "DROP INDEX a;", execution=SimpleQuery)][:],
+  ).unwrap()
+  assert_true(@lens.compare_archives(saved, changed) is Err(_))
+  assert_eq(saved.origin.rules_version, "pg18-review-1")
+}

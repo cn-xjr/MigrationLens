@@ -28,8 +28,8 @@ library and creates a workspace using `moon work init library consumer`.
 The original library checkout is not a workspace member. This catches missing
 archive files and public imports that succeed only inside the original project.
 
-The isolated consumer compiles with warnings denied, runs three tests, then
-runs its executable. The tests exercise three downstream tasks:
+The isolated consumer compiles with warnings denied, runs four tests, then
+runs its executable. The tests exercise four downstream tasks:
 
 1. A migration runner supplies dispatch/timeout facts and detects the same
    concurrent index succeeding in separate dispatch but failing in a whole-file
@@ -38,6 +38,8 @@ runs its executable. The tests exercise three downstream tasks:
    validation, retaining catalog/data warnings and exporting a SARIF report.
 3. A CI tool restores saved batch reports and distinguishes accepted findings
    from a new finding, including a repeat baseline comparison with no new issues.
+4. A provenance-aware CI tool restores a v2 archive and rejects changed dispatch
+   before baseline comparison. See [the archive contract](archive.mbt.md).
 
 Expected final output: `Packaged consumer checks passed on <target>` (exit 0).
 The example itself prints `MigrationLens downstream consumer: index rollout reviewed`.

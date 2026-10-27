@@ -5,6 +5,10 @@
 No registry publication or release tag has been made. This section describes
 implemented source capabilities, not a published package.
 
+- Added version-2 review archives with explicit project/tool/rule/database
+  provenance, preserved execution/timeout facts and checked baseline comparison.
+  Existing v1 contracts remain available; legacy reports are not relabeled.
+
 - Offline PostgreSQL 18 migration review with explicit separate/simple-query
   dispatch, caller transaction state, chaining and savepoint handling.
 - Session/local lock_timeout tracking across commit, rollback, RELEASE and

@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn compare_archives(ReviewArchive, ReviewArchive) -> Result[ArchiveDelta, String]
+
 pub fn compare_batches(BatchReport, BatchReport) -> Result[BatchDelta, String]
 
 pub fn compare_reports(Report, Report) -> Result[ReportDelta, String]
@@ -17,6 +19,15 @@ pub fn review_sql(String, execution~ : Execution, initial_transaction? : Bool, r
 // Errors
 
 // Types and methods
+pub struct ArchiveDelta {
+  baseline : ReviewArchive
+  current : ReviewArchive
+  files : Array[FileDelta]
+}
+pub fn ArchiveDelta::exit_code(Self) -> Int32
+pub fn ArchiveDelta::to_json(Self) -> Json
+pub fn ArchiveDelta::to_text(Self) -> String
+
 pub struct BatchDelta {
   baseline : BatchReport
   current : BatchReport
@@ -107,6 +118,24 @@ pub struct ReportDelta {
 pub fn ReportDelta::exit_code(Self) -> Int32
 pub fn ReportDelta::to_json(Self) -> Json
 pub fn ReportDelta::to_text(Self) -> String
+
+pub struct ReviewArchive {
+  origin : ReviewOrigin
+  batch : BatchReport
+}
+pub fn ReviewArchive::exit_code(Self) -> Int32
+pub fn ReviewArchive::parse_json(String) -> Result[Self, String]
+pub fn ReviewArchive::review(String, ArrayView[Migration], initial_lock_timeout_ms? : Int32) -> Result[Self, String]
+pub fn ReviewArchive::to_json(Self) -> Json
+pub fn ReviewArchive::to_sarif(Self) -> Result[Json, String]
+pub fn ReviewArchive::to_text(Self) -> String
+
+pub struct ReviewOrigin {
+  project : String
+  tool_version : String
+  rules_version : String
+  database : String
+}
 
 pub(all) enum Severity {
   Error

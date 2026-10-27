@@ -88,7 +88,7 @@ async fn verify(moon : String, target : String, workspace : String) -> Unit {
     "--deny-warn",
   ])
   assert_true(
-    tests.contains("Total tests: 3, passed: 3, failed: 0."),
+    tests.contains("Total tests: 4, passed: 4, failed: 0."),
     msg=tests,
   )
   let output = checked(moon, ["-C", consumer, "run", "--target", target, "."])

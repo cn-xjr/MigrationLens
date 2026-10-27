@@ -3,6 +3,10 @@
 The review implementation and tests are authored for this repository, except
 the copied SQL fixtures below. No Squawk implementation is copied.
 
+The v2 provenance archive, compatibility checks, tests and examples are authored
+under Apache-2.0. They extend this repository's report contract; no external
+archive schema, comparison implementation or test suite is copied.
+
 ## Dependencies
 
 * moonbit-community/sqlparser 0.5.1 — Apache-2.0; AST parsing.

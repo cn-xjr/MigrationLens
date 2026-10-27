@@ -73,6 +73,8 @@ value; `max_lock_timeout_ms` adds an inclusive upper bound. A caller-assured
 
 For CI, persist a report and compare it with a trusted baseline from the same
 project/rule version. Batch archives retain per-file execution and policy facts.
+For automatic project/version/context compatibility checks, use the new
+[version-2 review archive](docs/archive.mbt.md). V1 APIs below remain compatible.
 
 ```mbt check
 ///|

@@ -1,6 +1,6 @@
 # Current validation and limits
 
-Evidence is maintained as of 2026-10-27. CI pins compiler/core stable
+Evidence is maintained as of 2026-10-28. CI pins compiler/core stable
 `0.10.16+b1a0e846e`: moon/moonrun `0.1.20261016`, moonc
 `v0.10.16+b1a0e846e`. This is the tested reproducible release, not a claim that
 every newer toolchain has been checked. Older development notes are preserved in
@@ -12,9 +12,9 @@ to those earlier revisions.
 | Check | Observed result |
 | --- | --- |
 | Formatting, generated interfaces, strict compilation | Passed; four targets checked with warnings denied |
-| Library and executable documentation tests | 165 pass per target: Wasm, Wasm-GC, JavaScript, actual Linux native |
+| Library and executable documentation tests | 175 pass per target: Wasm, Wasm-GC, JavaScript, actual Linux native |
 | Complete file CLI workflow | Passes all four targets, including expected finding/incomplete exits |
-| Packaged dependency consumer | Three public-API tests and its executable pass per target after fresh ZIP extraction |
+| Packaged dependency consumer | Four public-API tests and its executable pass per target after fresh ZIP extraction |
 | Operating systems | GitHub Actions Linux/macOS/Windows portable execution; Linux/macOS native execution |
 | PostgreSQL semantics | Actual PostgreSQL 18 CI probes pass; no local database execution claimed |
 | SARIF output | Seven generated documents validated against the external OASIS 2.1.0 schema |
@@ -92,6 +92,12 @@ semantic probes, not workload benchmarks, exhaustive PostgreSQL compatibility
 tests or measured proof of scan avoidance.
 
 ## Evidence boundaries
+
+The v2 archive adds automatic project/tool/rule/context compatibility checks.
+V1 encoding/decoding and legacy comparison behavior are preserved. New tests
+cover mismatches, strict restoration, duplicate multiplicity, independent
+snapshots and invalid Unicode, including a downstream executable and four
+consumer tests. Read [the archive contract](archive.mbt.md) for compatibility.
 
 Source and resource licenses are recorded in [THIRD_PARTY.md](../THIRD_PARTY.md).
 The River production fixture deliberately returns incomplete for unsupported
