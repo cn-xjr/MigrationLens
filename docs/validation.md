@@ -17,11 +17,18 @@ to those earlier revisions.
 | Packaged dependency consumer | Four public-API tests and its executable pass per target after fresh ZIP extraction |
 | Operating systems | GitHub Actions Linux/macOS/Windows portable execution; Linux/macOS native execution |
 | PostgreSQL semantics | Actual PostgreSQL 18 CI probes pass; no local database execution claimed |
-| SARIF output | Seven generated documents validated against the external OASIS 2.1.0 schema |
+| SARIF output | Ten generated documents validated against the pinned OASIS 2.1.0 schema, plus static GitHub profile and negative tests |
 | Windows native runtime | Not verified; local MSVC/Windows SDK unavailable |
 | Registry publication | Not performed; local ZIP generation only |
 
 Public evidence before this documentation update:
+
+- [`799203c`, run 40542741103](https://github.com/cn-xjr/MigrationLens/actions/runs/40542741103):
+  v2 provenance/compatibility checks; all four CI jobs pass.
+- [`7a06245`, run 40545410582](https://github.com/cn-xjr/MigrationLens/actions/runs/40545410582):
+  full CI artifact/gate workflow and external-application execution; all four jobs pass.
+- [`aee009e`, run 40548135559](https://github.com/cn-xjr/MigrationLens/actions/runs/40548135559):
+  all four jobs pass, including 68 actual PostgreSQL 18 differential comparisons.
 
 - [`7f6c91c`, run 40349695555](https://github.com/cn-xjr/MigrationLens/actions/runs/40349695555):
   CR-comment correctness regression and expanded timeout tests; all four jobs pass.
@@ -94,10 +101,16 @@ tests or measured proof of scan avoidance.
 ## Evidence boundaries
 
 Seeded generator properties cover 256 seeds in both dispatch modes on each
-library target. Its verdict/replay self-checks run without a database. The new
-[differential runner](differential.md) compiles locally; actual generated server
-comparisons are verified in this revision's PostgreSQL 18 CI job. No local
-database execution is claimed.
+library target. Its verdict/replay self-checks run without a database. The
+[differential runner](differential.md) passed 68 actual server comparisons in
+the linked PostgreSQL 18 job. No local database execution is claimed. Native
+scenario-plan generation was also executed locally, alongside native unit tests.
+
+The [SARIF validation workflow](sarif-validation.md) verifies pinned schema bytes
+before use, checks ten old/new output samples, rejects malformed documents and
+cross-reference/count violations, and proves checksum refusal/recovery. It uses
+pinned Python tooling only for validation; the library gains no runtime dependency.
+Static GitHub profile checks do not establish a successful hosted ingestion.
 
 The complete `cmd/ci` workflow is covered on all supported targets, including
 finding/incomplete exits, preserved full reports, baseline acceptance/rejection,

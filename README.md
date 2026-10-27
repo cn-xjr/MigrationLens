@@ -120,7 +120,7 @@ targets and adapting the example to your tool.
 | Lock waiting | Session/local lock_timeout, resets, caller entry facts and maximum policy |
 | Maintenance | Explicit table locks, ANALYZE, VACUUM, CLUSTER and materialized-view refresh |
 | Staged constraints | Foreign keys with NOT VALID, validation, UNIQUE/PRIMARY KEY USING INDEX, SET NOT NULL |
-| Tool integration | Text, version-1 JSON archives, SARIF 2.1.0, batch review and trusted baseline comparison |
+| Tool integration | Text, v1/v2 JSON archives, SARIF 2.1.0, batch review and trusted baseline comparison |
 
 Each SQL family has a closed supported grammar, documented in the
 [detailed reference](docs/reference.mbt.md). Other DDL/DML, templates, psql
@@ -152,6 +152,7 @@ new findings; their full reports preserve accepted findings.
 - [Design, differentiation and scope](docs/design.md)
 - [Current validation matrix and reproduction](docs/validation.md)
 - [Seeded PostgreSQL differential tests and failure replay](docs/differential.md)
+- [Pinned SARIF schema validation and GitHub profile](docs/sarif-validation.md)
 - [Maintainer handoff](docs/maintaining.md) and [unreleased changes](CHANGELOG.md)
 - [Generated public API](pkg.generated.mbti) and [sources/licenses](THIRD_PARTY.md)
 

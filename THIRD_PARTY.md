@@ -105,13 +105,19 @@ under the root Apache-2.0 license; no documentation examples or code were copied
 
 SARIF export follows the OASIS SARIF 2.1.0 specification:
 <https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html>.
-An external official JSON Schema was downloaded only for local validation:
+An external official JSON Schema is downloaded for local/CI validation:
 <https://github.com/oasis-tcs/sarif-spec/blob/main/sarif-2.1/schema/sarif-schema-2.1.0.json>.
+Its exact source revision and checksum are pinned in validation/sarif-schema-lock.json.
 These OASIS resources retain their published OASIS copyright/license notices;
 neither the specification nor schema is redistributed in this repository.
 No SARIF exporter implementation, examples or tests were copied. Export and
 test code is authored under the root Apache-2.0 license. Validation used the
-external Python jsonschema CLI (MIT), not a library/runtime dependency.
+external validation tooling, not a library/runtime dependency. The maintained
+check-jsonschema CLI (Apache-2.0), jsonschema (MIT) and transitive package
+versions/licenses are recorded in validation/requirements.txt and
+validation/tooling-sources.md. CI additionally uses actions/setup-python (MIT).
+The GitHub profile checks and negative tests are authored under Apache-2.0;
+no upstream validator implementation or test payload is copied.
 
 Index rename syntax/lock/constraint semantics were checked against PostgreSQL 18
 ALTER INDEX: <https://www.postgresql.org/docs/18/sql-alterindex.html>.

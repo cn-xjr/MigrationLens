@@ -31,6 +31,10 @@
 !/fixtures/RIVER_LICENSE
 !/scripts/
 !/scripts/*.mbtx
+!/validation/
+!/validation/sarif-schema-lock.json
+!/validation/requirements.txt
+!/validation/tooling-sources.md
 **/_build/
 **/target/
 **/.mooncakes/

@@ -53,7 +53,8 @@ async fn verify(moon : String, target : String, workspace : String) -> Unit {
       "fixtures/RIVER_LICENSE", "scanner.mbt", "cmd/main/main.mbt", "README.mbt.md",
       "docs/moon.pkg", "docs/pkg.generated.mbti", "docs/reference.mbt.md", "cmd/ci/main.mbt",
       "internal/manifest/moon.pkg", "docs/ci-review.yml", "cmd/scenarios/main.mbt",
-      "internal/scenarios/moon.pkg",
+      "internal/scenarios/moon.pkg", "validation/sarif-schema-lock.json", "validation/requirements.txt",
+      "validation/tooling-sources.md",
     ] {
     assert_true(entries.contains(required), msg="archive missing " + required)
   }

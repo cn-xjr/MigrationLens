@@ -19,10 +19,17 @@ jobs:
           version: '0.10.16+b1a0e846e'
           core-version: '0.10.16+b1a0e846e'
       - run: moon -C .tools/migrationlens update
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip --isolated --disable-pip-version-check install --no-input --index-url https://pypi.org/simple -r .tools/migrationlens/validation/requirements.txt
       - run: moon -C .tools/migrationlens run --target js --build-only cmd/ci
       # Run from the application root so manifest paths refer to this project.
       # Append ci/accepted-baseline.json to use a trusted version-2 baseline.
       - run: node .tools/migrationlens/_build/js/debug/build/cmd/ci/ci.js my-service ci/migrations.json review-artifacts
+      - name: Validate available SARIF even when findings fail the gate
+        if: always() && hashFiles('review-artifacts/report.sarif.json') != ''
+        run: moon -C .tools/migrationlens run scripts/validate_sarif.mbtx ../../review-artifacts/report.sarif.json
       - name: Preserve diagnostics even when the review gate fails
         if: always()
         uses: actions/upload-artifact@v4

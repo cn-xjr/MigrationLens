@@ -1,0 +1,9 @@
+{
+  "format_version": 1,
+  "edition": "SARIF 2.1.0 Errata 01",
+  "source_revision": "a560296ca8c921f3bdb8d4a8db57ab83dae968a7",
+  "url": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/a560296ca8c921f3bdb8d4a8db57ab83dae968a7/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "mirror_url": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "sha256": "c3b4bb2d6093897483348925aaa73af03b3e3f4bd4ca38cef26dcb4212a2682e",
+  "license_url": "https://github.com/oasis-tcs/sarif-spec/blob/a560296ca8c921f3bdb8d4a8db57ab83dae968a7/LICENSE.md"
+}

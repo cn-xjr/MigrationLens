@@ -22,7 +22,7 @@ moon test --target wasm --deny-warn
 moon test --target wasm-gc --deny-warn
 moon test --target js --deny-warn
 moon test --target native --deny-warn
-moon fmt --check scripts/e2e.mbtx scripts/postgres_probe.mbtx scripts/consumer.mbtx
+moon fmt --check scripts/e2e.mbtx scripts/postgres_probe.mbtx scripts/consumer.mbtx scripts/ci_e2e.mbtx scripts/differential.mbtx scripts/validate_sarif.mbtx
 moon check scripts/e2e.mbtx --deny-warn
 moon check scripts/postgres_probe.mbtx --deny-warn
 moon check scripts/consumer.mbtx --deny-warn
@@ -49,6 +49,12 @@ moon run scripts/ci_e2e.mbtx wasm-gc
 moon run scripts/ci_e2e.mbtx js
 moon run scripts/ci_e2e.mbtx native
 ```
+
+For external SARIF checks, use Python 3.12 with
+`python -m pip install -r validation/requirements.txt`, then run
+`moon run scripts/validate_sarif.mbtx` and
+`moon run scripts/validate_sarif.mbtx --self-test` after generating e2e artifacts.
+See [schema pins, profile and offline cache usage](sarif-validation.md).
 
 Run these sequentially from a single checkout: CLI suites write shared _build
 artifacts. Each consumer run instead creates its own fresh temporary workspace.

@@ -12,6 +12,8 @@ implemented source capabilities, not a published package.
   failure status, fresh output protection and an external-application workflow.
 - Added seeded transaction/savepoint/timeout differential testing against
   PostgreSQL 18, deterministic generation and persisted/replayable counterexamples.
+- Added checksum-pinned official SARIF schema validation, pinned validation-only
+  dependencies, conservative GitHub profile checks and negative/recovery CI tests.
 
 - Offline PostgreSQL 18 migration review with explicit separate/simple-query
   dispatch, caller transaction state, chaining and savepoint handling.

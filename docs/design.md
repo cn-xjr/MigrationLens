@@ -103,6 +103,9 @@ No automatic replacement of ordinary indexes with concurrent indexes occurs.
   locks despite possible scan elision, closed action lists and data caveats.
 
 Each capability includes its own tests, documentation and generated interface.
+Delivered integration layers also include v2 provenance-checked archives,
+manifest-to-artifacts CI gates, seeded PostgreSQL differential tests and pinned
+external SARIF validation. These retain the existing closed SQL boundary.
 Later work may support caller-supplied relation facts and additional DDL, only
 after preserving the existing rule contract. Full PostgreSQL parsing and
 online risk prediction are not promised.

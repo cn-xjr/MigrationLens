@@ -72,6 +72,8 @@ Copy/adapt [ci-review.yml](ci-review.yml) for GitHub Actions.
 It builds the tool separately, runs the gate from the application root and uses
 `if: always()` to upload artifacts after a failing review. It does not mask the
 gate's nonzero exit, publish a package or require code-scanning write permission.
+It also validates an available SARIF file using the pinned schema/tool profile,
+even when the review found issues. See [SARIF validation](sarif-validation.md).
 The example's paths/project ID are placeholders to adapt, not hard-coded CLI rules.
 Repository-level integration tests execute the workflow logic on supported
 targets; this example has not been installed into an external user's repository.

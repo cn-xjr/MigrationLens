@@ -1,0 +1,465 @@
+///|
+import {
+  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.5/shell",
+  "moonbitlang/async@0.22.5/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn hex(c : UInt16) -> Int32? {
+  if c >= 48 && c <= 57 {
+    Some(c.to_int() - 48)
+  } else if c >= 65 && c <= 70 {
+    Some(c.to_int() - 55)
+  } else if c >= 97 && c <= 102 {
+    Some(c.to_int() - 87)
+  } else {
+    None
+  }
+}
+
+///|
+fn relative_uri(uri : String) -> Bool {
+  if uri.is_empty() || uri.has_prefix("/") {
+    return false
+  }
+  let units = uri.code_units()
+  let mut i = 0
+  while i < units.length() {
+    let c = units[i]
+    if c == 37 {
+      if i + 2 >= units.length() {
+        return false
+      }
+      guard hex(units[i + 1]) is Some(high) && hex(units[i + 2]) is Some(low) else {
+        return false
+      }
+      let byte = high * 16 + low
+      if byte < 32 || [46, 47, 58, 92, 127].contains(byte) {
+        return false
+      }
+      i += 3
+    } else {
+      if !((c >= 48 && c <= 57) ||
+        (c >= 65 && c <= 90) ||
+        (c >= 97 && c <= 122) ||
+        [45, 46, 47, 95, 126].contains(c.to_int())) {
+        return false
+      }
+      i += 1
+    }
+  }
+  !uri.split("/").any(part => part.is_empty() || part == "." || part == "..")
+}
+
+///|
+// A conservative profile for this exporter's per-file runs. OASIS validation
+// remains independent; this is not a complete GitHub ingestion emulator.
+fn github_profile(log : Json) -> Result[Unit, String] {
+  guard log is { "version": "2.1.0", "runs": Array(runs), .. } &&
+    !runs.is_empty() &&
+    runs.length() <= 20 else {
+    return Err("GitHub profile requires 1..20 SARIF 2.1.0 runs")
+  }
+  for i, run in runs {
+    guard run
+      is {
+        "tool": {
+          "driver": { "name": String(name), "rules": Array(rules), .. },
+          ..
+        },
+        "results": Array(results),
+        ..
+      } &&
+      !name.is_empty() else {
+      return Err("Run \{i}: missing nonempty tool name, rules or results")
+    }
+    guard run
+      is {
+        "artifacts": [{ "location": { "uri": String(artifact_uri), .. }, .. }],
+        ..
+      } &&
+      relative_uri(artifact_uri) else {
+      return Err(
+        "Run \{i}: require one canonical repository-relative source artifact",
+      )
+    }
+    if rules.length() > 25000 || results.length() > 5000 {
+      return Err(
+        "Run \{i}: exceed 25000 rules or conservative 5000 displayed-results limit; no findings are truncated",
+      )
+    }
+    let ids : Map[String, Bool] = Map([])
+    for rule in rules {
+      guard rule is { "id": String(id), .. } &&
+        !id.is_empty() &&
+        !ids.contains(id) else {
+        return Err("Run \{i}: empty or duplicate rule ID")
+      }
+      ids[id] = true
+    }
+    for j, result in results {
+      guard result
+        is {
+          "ruleId": String(id),
+          "ruleIndex": Number(index, ..),
+          "message": { "text": String(text), .. },
+          "locations": [location],
+          ..
+        } &&
+        !text.is_empty() &&
+        index >= 0 &&
+        index < rules.length().to_double() &&
+        index == index.to_int().to_double() else {
+        return Err(
+          "Run \{i} result \{j}: invalid rule reference, message or single location",
+        )
+      }
+      guard rules[index.to_int()] is { "id": String(referenced), .. } &&
+        referenced == id else {
+        return Err("Run \{i} result \{j}: ruleId does not match ruleIndex")
+      }
+      guard location
+        is {
+          "physicalLocation": {
+            "artifactLocation": { "uri": String(uri), "index": 0, .. },
+            "region": { "startLine": Number(line, ..), .. },
+            ..
+          },
+          ..
+        } &&
+        line >= 1 &&
+        uri == artifact_uri &&
+        relative_uri(uri) else {
+        return Err(
+          "Run \{i} result \{j}: require canonical repository-relative URI and positive source line",
+        )
+      }
+    }
+  }
+  Ok(())
+}
+
+///|
+fn hash_line_matches(stdout : String, sha : String) -> Bool {
+  let hashes = stdout
+    .split("\n")
+    .map(line => line.trim().to_owned())
+    .filter(line => line.has_prefix("--hash=sha256:"))
+    .to_array()
+  hashes is [line] && line == "--hash=sha256:" + sha
+}
+
+///|
+async fn hash_matches(python : String, path : String, sha : String) -> Bool {
+  let output = @shell.Cmd(python, ["-m", "pip", "hash", path]).output(
+    timeout_ms=30000,
+  )
+  output.check()
+  hash_line_matches(output.stdout(), sha)
+}
+
+///|
+async fn schema_path(python : String) -> (String, String) {
+  let lock = @json.parse(
+    @fs.read_file("validation/sarif-schema-lock.json").text(),
+    reject_duplicate_keys=true,
+  )
+  guard lock
+    is {
+      "format_version": 1,
+      "url": String(url),
+      "mirror_url": String(mirror),
+      "sha256": String(sha),
+      ..
+    } &&
+    sha.length() == 64 &&
+    sha.code_units().all(c => hex(c) is Some(_)) &&
+    url.has_prefix("https://") &&
+    mirror.has_prefix("https://") else {
+    fail("Invalid SARIF schema lock")
+  }
+  @fs.mkdir("_build/validation", recursive=true, allow_exist=true)
+  let configured = @env.get_env_var("MIGRATIONLENS_SARIF_SCHEMA")
+  let path = configured.unwrap_or("_build/validation/sarif-schema-2.1.0.json")
+  if !@fs.exists(path) {
+    guard configured is None else {
+      fail("Configured schema file does not exist: " + path)
+    }
+    let curl = if @env.get_env_var("OS") == Some("Windows_NT") {
+      "curl.exe"
+    } else {
+      "curl"
+    }
+    let first = @shell.Cmd(curl, [
+      "--fail", "--location", "--silent", "--show-error", "--max-time", "45", "--output",
+      path, url,
+    ]).output(timeout_ms=55000)
+    if first.exit_code() != 0 {
+      let fallback = @shell.Cmd(curl, [
+        "--fail", "--location", "--silent", "--show-error", "--max-time", "45", "--output",
+        path, mirror,
+      ]).output(timeout_ms=55000)
+      fallback.check()
+    }
+  }
+  guard hash_matches(python, path, sha) else {
+    fail(
+      "SARIF schema SHA-256 mismatch; refusing validation with unverified data: " +
+      path,
+    )
+  }
+  (path, sha)
+}
+
+///|
+async fn external_validation(
+  python : String,
+  schema : String,
+  paths : Array[String],
+) -> @shell.Output {
+  let args = [
+    "-m", "check_jsonschema", "--schemafile", schema, "--force-filetype", "json",
+  ]
+  for path in paths {
+    args.push(path)
+  }
+  @shell.Cmd(python, args).output(timeout_ms=120000)
+}
+
+///|
+async fn validate(
+  python : String,
+  schema : String,
+  paths : Array[String],
+  github~ : Bool,
+) -> Unit {
+  for path in paths {
+    let value = @json.parse(
+      @fs.read_file(path).text(),
+      reject_duplicate_keys=true,
+      preserve_number_repr=true,
+      max_nesting_depth=64,
+    )
+    if github {
+      match github_profile(value) {
+        Ok(_) => ()
+        Err(e) => fail(path + ": " + e)
+      }
+      let compressed = @shell.Cmd(
+        python,
+        ["-m", "gzip", "-"],
+        stdin=FromFile(path),
+      ).output(timeout_ms=60000, max_output_bytes=11000000)
+      compressed.check()
+      let gzip = compressed.stdout_bytes()
+      guard gzip.length() >= 18 && gzip[0] == 0x1f && gzip[1] == 0x8b else {
+        fail(
+          path + ": expected a gzip stream from the selected Python interpreter",
+        )
+      }
+      guard gzip.length() <= 10000000 else {
+        fail(path + ": gzip exceeds conservative 10,000,000-byte GitHub budget")
+      }
+    }
+  }
+  let result = external_validation(python, schema, paths)
+  guard result.exit_code() == 0 else {
+    fail(
+      "Official SARIF schema validation failed:\n" +
+      result.stdout() +
+      result.stderr(),
+    )
+  }
+  println(
+    "Verified official SARIF schema for \{paths.length()} files; GitHub profile=\{github}",
+  )
+}
+
+///|
+async fn self_test(python : String, schema : String, sha : String) -> Unit {
+  let sample = "_build/ci-sarif-warning.json"
+  let original = @fs.read_file(sample).text()
+  let base = @json.parse(original)
+  assert_true(github_profile(base) is Ok(_))
+  assert_true(
+    hash_line_matches("schema.json:\r\n--hash=sha256:" + sha + "\r\n", sha),
+  )
+  assert_true(
+    !hash_line_matches(
+      "a/path--hash=sha256:" + sha + ":\n--hash=sha256:wrong\n",
+      sha,
+    ),
+  )
+  assert_true(
+    !hash_line_matches(
+      "injected\n--hash=sha256:" + sha + "\n--hash=sha256:wrong\n",
+      sha,
+    ),
+  )
+  for
+    uri in [
+      "a.sql", "a%20b.sql", "migrations/%E4%B8%AD.sql", "a%252e.sql", "a%23b.sql",
+    ] {
+    assert_true(relative_uri(uri), msg=uri)
+  }
+  for
+    uri in [
+      "", "/a.sql", "../a.sql", "a//b.sql", "a/%2e%2e/b.sql", "a%2Fb.sql", "a%5cb.sql",
+      "a\\b.sql", "https://x/a.sql", "a%GG", "a%00.sql", "a#b.sql",
+    ] {
+    assert_true(!relative_uri(uri), msg=uri)
+  }
+  for count in [0, 20, 21] {
+    let data = @json.parse(original)
+    guard data is Object(root) && data is { "runs": [run], .. } else {
+      fail("sample shape")
+    }
+    let runs : Array[Json] = []
+    for _ in 0..<count {
+      runs.push(run)
+    }
+    root["runs"] = Json(runs)
+    assert_eq(github_profile(data) is Ok(_), count == 20)
+  }
+  for count in [5000, 5001] {
+    let data = @json.parse(original)
+    guard data is { "runs": [Object(run)], .. } &&
+      run.get("results") is Some([result, ..]) else {
+      fail("sample findings")
+    }
+    let results : Array[Json] = []
+    for _ in 0..<count {
+      results.push(result)
+    }
+    run["results"] = Json(results)
+    assert_eq(github_profile(data) is Ok(_), count == 5000)
+  }
+  for key in ["ruleId", "ruleIndex", "message", "locations"] {
+    let data = @json.parse(original)
+    guard data is { "runs": [{ "results": [Object(result), ..], .. }], .. } else {
+      fail("sample finding")
+    }
+    result[key] = match key {
+      "ruleId" => Json("unrepresented-rule")
+      "ruleIndex" => Json(25000)
+      "message" => { "text": "" }
+      _ => []
+    }
+    assert_true(github_profile(data) is Err(_), msg=key)
+  }
+  // Duplicate rule IDs and an overlarge rule table fail closed.
+  let too_many = @json.parse(original)
+  guard too_many
+    is { "runs": [{ "tool": { "driver": Object(driver), .. }, .. }], .. } &&
+    driver.get("rules") is Some([rule, ..]) else {
+    fail("sample rules")
+  }
+  driver["rules"] = [rule, rule]
+  assert_true(github_profile(too_many) is Err(_))
+  let rules : Array[Json] = []
+  for _ in 0..<25001 {
+    rules.push(rule)
+  }
+  driver["rules"] = Json(rules)
+  assert_true(github_profile(too_many) is Err(_))
+  // Fresh absolute task-owned directory is the only recursive cleanup target.
+  let workspace = @fs.realpath(
+    @fs.tmpdir(prefix="migrationlens-sarif-negative"),
+  )
+  errdefer println("Failed schema self-test workspace retained at " + workspace)
+  for
+    (label, value) in [
+      ("empty", "{}"),
+      ("version", "{\"version\":\"2.2.0\",\"runs\":[]}"),
+    ] {
+    let path = workspace + "/" + label + ".json"
+    @fs.write_file(path, value)
+    assert_true(
+      external_validation(python, schema, [path]).exit_code() != 0,
+      msg=label,
+    )
+  }
+  for label in ["level", "line", "unknown", "uri"] {
+    let data = @json.parse(original)
+    guard data is Object(root) &&
+      data is { "runs": [{ "results": [Object(result), ..], .. }], .. } else {
+      fail("sample finding")
+    }
+    if label == "level" {
+      result["level"] = Json("fatal")
+    } else if label == "unknown" {
+      root["unrepresented"] = Json(true)
+    } else if label == "uri" {
+      root["$schema"] = Json("not a valid URI")
+    } else {
+      guard result.get("locations")
+        is Some([{ "physicalLocation": { "region": Object(region), .. }, .. }]) else {
+        fail("sample region")
+      }
+      region["startLine"] = Json(0)
+    }
+    let path = workspace + "/" + label + ".json"
+    @fs.write_file(path, data.stringify())
+    assert_true(
+      external_validation(python, schema, [path]).exit_code() != 0,
+      msg=label,
+    )
+  }
+  let corrupt = workspace + "/corrupt-schema.json"
+  @fs.write_file(corrupt, @fs.read_file(schema).text() + " ")
+  assert_true(!hash_matches(python, corrupt, sha))
+  let moon = @env.get_env_var("MIGRATIONLENS_MOON").unwrap_or("moon")
+  let refused = @shell.Cmd(
+    moon,
+    ["run", "scripts/validate_sarif.mbtx", "--schema-only", sample],
+    env=Map([("MIGRATIONLENS_SARIF_SCHEMA", corrupt)]),
+    inherit_env=true,
+  ).output(timeout_ms=60000)
+  assert_true(
+    refused.exit_code() != 0 &&
+    (refused.stdout() + refused.stderr()).contains("SHA-256 mismatch"),
+  )
+  let empty = workspace + "/empty-valid.json"
+  @fs.write_file(empty, "{\"version\":\"2.1.0\",\"runs\":[]}")
+  validate(python, schema, [empty], github=false)
+  let duplicate = workspace + "/duplicate.json"
+  @fs.write_file(duplicate, "{\"version\":\"2.1.0\",\"runs\":[],\"runs\":[]}")
+  let duplicate_result = @shell.Cmd(moon, [
+    "run", "scripts/validate_sarif.mbtx", "--schema-only", duplicate,
+  ]).output(timeout_ms=60000)
+  assert_true(duplicate_result.exit_code() != 0)
+  // Recover using the original verified schema; inputs must remain unchanged.
+  validate(python, schema, [sample], github=true)
+  assert_eq(@fs.read_file(sample).text(), original)
+  @fs.rmdir(workspace, recursive=true)
+  println("SARIF negative/schema/hash/boundary/recovery checks passed")
+}
+
+///|
+async fn main {
+  let python = @env.get_env_var("MIGRATIONLENS_PYTHON").unwrap_or("python")
+  let (schema, sha) = schema_path(python)
+  let args = @env.args()[1:].to_owned()
+  if args is ["--self-test"] {
+    self_test(python, schema, sha)
+    return
+  }
+  guard !args.any(arg => arg.has_prefix("--") && arg != "--schema-only") else {
+    fail("Usage: validate_sarif.mbtx [--schema-only] [paths...] or --self-test")
+  }
+  let github = !args.contains("--schema-only")
+  let paths = args.filter(arg => arg != "--schema-only")
+  let paths = if paths.is_empty() {
+    [
+      "_build/sarif-0.json", "_build/sarif-1.json", "_build/sarif-2.json", "_build/sarif-batch.json",
+      "_build/sarif-session.json", "_build/sarif-restored.json", "_build/sarif-restored-batch.json",
+      "_build/ci-sarif-clean.json", "_build/ci-sarif-warning.json", "_build/ci-sarif-incomplete.json",
+    ]
+  } else {
+    paths
+  }
+  validate(python, schema, paths, github~)
+}
