@@ -23,6 +23,12 @@ to those earlier revisions.
 
 Public evidence before this documentation update:
 
+- [`ad5d77b`, run 40554777347](https://github.com/cn-xjr/MigrationLens/actions/runs/40554777347):
+  all four jobs pass, including external schema/profile validation on three OSes.
+  A subsequent verdict regression reproduced an earlier warning hiding a later
+  non-conflict SQLSTATE. The terminal-error parser and crash/CRLF/ambiguous-output
+  self-checks fix this without changing library analysis or archive contracts.
+
 - [`799203c`, run 40542741103](https://github.com/cn-xjr/MigrationLens/actions/runs/40542741103):
   v2 provenance/compatibility checks; all four CI jobs pass.
 - [`7a06245`, run 40545410582](https://github.com/cn-xjr/MigrationLens/actions/runs/40545410582):

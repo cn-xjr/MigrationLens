@@ -47,6 +47,10 @@ before a concurrent-index sentinel. The script checks that observed milliseconds
 match the static ML201/ML205/no-timeout-warning classification. It independently
 checks whether the sentinel actually succeeds or fails with SQLSTATE 25001.
 Other server errors and missing/ambiguous observations fail the oracle.
+Only a terminal `ERROR: 25001` record with a normal psql SQL-error exit is
+accepted as a conflict. Earlier WARNING records cannot hide a different terminal
+error or a crashed process. This output parser uses the English severity labels
+of the CI server; other/localized diagnostic formats fail closed.
 
 The observer does not enter the reviewed SQL. For simple dispatch it is inserted
 into the same multi-statement message, whose input already contains multiple

@@ -12,6 +12,8 @@ implemented source capabilities, not a published package.
   failure status, fresh output protection and an external-application workflow.
 - Added seeded transaction/savepoint/timeout differential testing against
   PostgreSQL 18, deterministic generation and persisted/replayable counterexamples.
+- Fixed the differential verdict accepting an earlier 25001 warning when a
+  later server error had a different SQLSTATE; crashes and ambiguous output fail.
 - Added checksum-pinned official SARIF schema validation, pinned validation-only
   dependencies, conservative GitHub profile checks and negative/recovery CI tests.
 

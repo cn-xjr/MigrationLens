@@ -22,6 +22,20 @@ async fn psql(steps : Array[String]) -> @shell.Output {
 }
 
 ///|
+fn terminal_conflict(stderr : String) -> Bool {
+  let records = stderr
+    .split("\n")
+    .map(line => line.trim().to_owned())
+    .filter(line => !line.is_empty())
+    .to_array()
+  guard records.last() is Some(last) else { return false }
+  let fields = last.split(":").map(field => field.trim().to_owned()).to_array()
+  fields.length() >= 2 &&
+  fields[fields.length() - 2] == "ERROR" &&
+  fields[fields.length() - 1] == "25001"
+}
+
+///|
 fn check_observation(
   expected : Json,
   code : Int32,
@@ -39,7 +53,7 @@ fn check_observation(
     return Err("Generator produced incomplete/malformed analysis")
   }
   let failed = code != 0
-  if failed && !stderr.contains("25001") {
+  if failed && ((code != 1 && code != 3) || !terminal_conflict(stderr)) {
     return Err("Unexpected PostgreSQL failure before/at the concurrent index")
   }
   if Json(failed) != conflict {
@@ -136,6 +150,27 @@ fn self_test() -> Unit raise {
   assert_true(check_observation(finite, 0, "0|ms", "") is Err(_))
   assert_true(check_observation(finite, 1, "100|ms", "25001") is Err(_))
   assert_true(check_observation(blocked, 1, "101|ms", "3B001") is Err(_))
+  assert_true(
+    check_observation(blocked, 1, "101|ms", "WARNING: 25001\nERROR: 3B001")
+    is Err(_),
+  )
+  assert_true(
+    check_observation(blocked, 1, "101|ms", "WARNING: 25001\nERROR: 55P03")
+    is Err(_),
+  )
+  assert_true(
+    check_observation(blocked, 139, "101|ms", "WARNING: 25001") is Err(_),
+  )
+  assert_true(check_observation(blocked, 1, "101|ms", "25001") is Err(_))
+  assert_true(
+    check_observation(blocked, 1, "101|ms", "ERROR: 250010") is Err(_),
+  )
+  assert_true(
+    check_observation(
+      blocked, 1, "101|ms", "WARNING: 25001\r\npsql: ERROR:  25001\r\n",
+    )
+    is Ok(_),
+  )
   assert_true(check_observation(Json::null(), 0, "100|ms", "") is Err(_))
   assert_eq(
     replay_parameters({

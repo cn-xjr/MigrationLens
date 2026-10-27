@@ -17,6 +17,10 @@ Apache-2.0. Server observations follow PostgreSQL 18 pg_settings and protocol
 documentation (PostgreSQL License), with no upstream text/code/fixtures copied:
 <https://www.postgresql.org/docs/18/view-pg-settings.html> and
 <https://www.postgresql.org/docs/18/protocol-flow.html#PROTOCOL-FLOW-MULTI-STATEMENT>.
+SQLSTATE-only diagnostic formatting was checked against PostgreSQL REL_18_STABLE
+`src/interfaces/libpq/fe-protocol3.c` (PostgreSQL License). The terminal-error
+parser and its regression cases are authored here; no implementation is copied:
+<https://github.com/postgres/postgres/blob/REL_18_STABLE/src/interfaces/libpq/fe-protocol3.c>.
 
 ## Dependencies
 
