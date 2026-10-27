@@ -10,6 +10,8 @@ implemented source capabilities, not a published package.
   Existing v1 contracts remain available; legacy reports are not relabeled.
 - Added a complete manifest-to-artifacts CI command with checked baseline gates,
   failure status, fresh output protection and an external-application workflow.
+- Added seeded transaction/savepoint/timeout differential testing against
+  PostgreSQL 18, deterministic generation and persisted/replayable counterexamples.
 
 - Offline PostgreSQL 18 migration review with explicit separate/simple-query
   dispatch, caller transaction state, chaining and savepoint handling.

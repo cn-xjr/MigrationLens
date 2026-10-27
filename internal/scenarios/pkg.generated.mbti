@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "cn-xjr/migration_lens/internal/scenarios"
+
+// Values
+pub fn generate(Int32, Int32) -> Result[Scenario, String]
+
+// Errors
+
+// Types and methods
+pub struct Scenario {
+  seed : Int32
+  commands : Array[String]
+  index_name : String
+}
+pub fn Scenario::sentinel(Self) -> String
+pub fn Scenario::sql(Self) -> String
+
+// Type aliases
+
+// Traits

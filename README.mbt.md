@@ -151,6 +151,7 @@ new findings; their full reports preserve accepted findings.
 - [Complete CI workflow and downstream Actions example](docs/ci.md)
 - [Design, differentiation and scope](docs/design.md)
 - [Current validation matrix and reproduction](docs/validation.md)
+- [Seeded PostgreSQL differential tests and failure replay](docs/differential.md)
 - [Maintainer handoff](docs/maintaining.md) and [unreleased changes](CHANGELOG.md)
 - [Generated public API](pkg.generated.mbti) and [sources/licenses](THIRD_PARTY.md)
 

@@ -12,7 +12,7 @@ to those earlier revisions.
 | Check | Observed result |
 | --- | --- |
 | Formatting, generated interfaces, strict compilation | Passed; four targets checked with warnings denied |
-| Library and executable documentation tests | 175 pass per target: Wasm, Wasm-GC, JavaScript, actual Linux native |
+| Library and executable documentation tests | 178 pass per target: Wasm, Wasm-GC, JavaScript, actual Linux native |
 | Complete file CLI workflow | Passes all four targets, including expected finding/incomplete exits |
 | Packaged dependency consumer | Four public-API tests and its executable pass per target after fresh ZIP extraction |
 | Operating systems | GitHub Actions Linux/macOS/Windows portable execution; Linux/macOS native execution |
@@ -92,6 +92,12 @@ semantic probes, not workload benchmarks, exhaustive PostgreSQL compatibility
 tests or measured proof of scan avoidance.
 
 ## Evidence boundaries
+
+Seeded generator properties cover 256 seeds in both dispatch modes on each
+library target. Its verdict/replay self-checks run without a database. The new
+[differential runner](differential.md) compiles locally; actual generated server
+comparisons are verified in this revision's PostgreSQL 18 CI job. No local
+database execution is claimed.
 
 The complete `cmd/ci` workflow is covered on all supported targets, including
 finding/incomplete exits, preserved full reports, baseline acceptance/rejection,

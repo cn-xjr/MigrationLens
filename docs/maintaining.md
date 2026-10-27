@@ -27,6 +27,8 @@ moon check scripts/e2e.mbtx --deny-warn
 moon check scripts/postgres_probe.mbtx --deny-warn
 moon check scripts/consumer.mbtx --deny-warn
 moon check scripts/ci_e2e.mbtx --deny-warn
+moon check scripts/differential.mbtx --deny-warn
+moon run scripts/differential.mbtx --self-test
 ```
 
 Run native commands on Linux/macOS. Windows portable coverage does not establish

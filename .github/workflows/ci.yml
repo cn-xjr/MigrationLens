@@ -29,7 +29,8 @@ jobs:
       - run: moon test --target wasm --deny-warn
       - run: moon test --target wasm-gc --deny-warn
       - run: moon test --target js --deny-warn
-      - run: moon fmt --check scripts/e2e.mbtx scripts/postgres_probe.mbtx scripts/consumer.mbtx scripts/ci_e2e.mbtx
+      - run: moon fmt --check scripts/e2e.mbtx scripts/postgres_probe.mbtx scripts/consumer.mbtx scripts/ci_e2e.mbtx scripts/differential.mbtx
+      - run: moon run scripts/differential.mbtx --self-test
       - run: moon run scripts/e2e.mbtx wasm
       - run: moon run scripts/e2e.mbtx wasm-gc
       - run: moon run scripts/e2e.mbtx js
@@ -83,3 +84,14 @@ jobs:
       - run: moon check scripts/postgres_probe.mbtx --deny-warn
       - run: psql --version
       - run: moon run scripts/postgres_probe.mbtx
+      - run: moon check scripts/differential.mbtx --deny-warn
+      - run: moon run scripts/differential.mbtx
+      - run: moon run scripts/differential.mbtx 2147483646 2 128
+      - name: Preserve reproducible differential failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-differential-failures
+          path: _build/differential/*.json
+          if-no-files-found: ignore
+          retention-days: 7

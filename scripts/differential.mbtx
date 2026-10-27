@@ -1,0 +1,331 @@
+///|
+import {
+  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.5/shell",
+  "moonbitlang/async@0.22.5/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn psql(steps : Array[String]) -> @shell.Output {
+  let args = [
+    "-X", "-qAt", "-v", "ON_ERROR_STOP=1", "-v", "VERBOSITY=sqlstate", "-c", "SET lock_timeout=0",
+    "-c", "SET statement_timeout='5s'",
+  ]
+  for sql in steps {
+    args.push("-c")
+    args.push(sql)
+  }
+  @shell.Cmd("psql", args).output(timeout_ms=30000)
+}
+
+///|
+fn check_observation(
+  expected : Json,
+  code : Int32,
+  stdout : String,
+  stderr : String,
+) -> Result[Unit, String] {
+  guard expected
+    is {
+      "conflict": True
+      | False as conflict,
+      "timeout_codes": codes,
+      "report": { "complete": true, .. },
+      ..
+    } else {
+    return Err("Generator produced incomplete/malformed analysis")
+  }
+  let failed = code != 0
+  if failed && !stderr.contains("25001") {
+    return Err("Unexpected PostgreSQL failure before/at the concurrent index")
+  }
+  if Json(failed) != conflict {
+    return Err("Transaction conflict differs from PostgreSQL SQLSTATE 25001")
+  }
+  let rows = stdout
+    .split("\n")
+    .map(line => line.trim().to_owned())
+    .filter(line => !line.is_empty())
+    .to_array()
+  guard rows is [row] else {
+    return Err("Expected exactly one timeout observation")
+  }
+  let parts = row.split("|").map(part => part.to_owned()).to_array()
+  guard parts is [number, "ms"] else {
+    return Err("Expected pg_settings lock_timeout in milliseconds")
+  }
+  let milliseconds = @string.parse_int(number) catch {
+    _ => return Err("Invalid observed timeout")
+  }
+  if milliseconds < 0 {
+    return Err("Negative observed timeout")
+  }
+  let actual : Json = if milliseconds == 0 {
+    ["ML201"]
+  } else if milliseconds > 100 {
+    ["ML205"]
+  } else {
+    []
+  }
+  if actual != codes {
+    return Err(
+      "Effective timeout policy differs from PostgreSQL: observed \{milliseconds}ms",
+    )
+  }
+  Ok(())
+}
+
+///|
+fn replay_parameters(value : Json) -> Result[(Int32, Int32, String), String] {
+  guard value
+    is {
+      "generator_version": 1,
+      "scenario": { "seed": seed_json, "sql": String(sql), .. },
+      "steps": steps_json,
+      ..
+    } else {
+    return Err(
+      "Replay requires generator_version=1, scenario seed/sql and steps",
+    )
+  }
+  let seed = @string.parse_int(seed_json.stringify()) catch {
+    _ => return Err("Invalid replay seed")
+  }
+  let steps = @string.parse_int(steps_json.stringify()) catch {
+    _ => return Err("Invalid replay steps")
+  }
+  if seed < 1 || seed > 2147483646 || steps < 0 || steps > 128 {
+    return Err("Replay parameters out of range")
+  }
+  Ok((seed, steps, sql))
+}
+
+///|
+fn self_test() -> Unit raise {
+  let finite : Json = {
+    "conflict": false,
+    "timeout_codes": [],
+    "report": { "complete": true },
+  }
+  let disabled : Json = {
+    "conflict": false,
+    "timeout_codes": ["ML201"],
+    "report": { "complete": true },
+  }
+  let blocked : Json = {
+    "conflict": true,
+    "timeout_codes": ["ML205"],
+    "report": { "complete": true },
+  }
+  for value in ["1", "50", "100"] {
+    assert_true(check_observation(finite, 0, value + "|ms\n", "") is Ok(_))
+  }
+  assert_true(check_observation(disabled, 0, "0|ms\n", "") is Ok(_))
+  assert_true(
+    check_observation(blocked, 1, "101|ms\n", "ERROR: 25001") is Ok(_),
+  )
+  assert_true(
+    check_observation(finite, 0, "100|ms\n", "WARNING: 25001") is Ok(_),
+  )
+  for bad in ["", "100|s", "a|ms", "-1|ms", "100|ms\n101|ms"] {
+    assert_true(check_observation(finite, 0, bad, "") is Err(_))
+  }
+  assert_true(check_observation(finite, 0, "0|ms", "") is Err(_))
+  assert_true(check_observation(finite, 1, "100|ms", "25001") is Err(_))
+  assert_true(check_observation(blocked, 1, "101|ms", "3B001") is Err(_))
+  assert_true(check_observation(Json::null(), 0, "100|ms", "") is Err(_))
+  assert_eq(
+    replay_parameters({
+      "generator_version": 1,
+      "scenario": { "seed": 1, "sql": "sample" },
+      "steps": 0,
+    }).unwrap(),
+    (1, 0, "sample"),
+  )
+  for
+    bad in [
+      Json::null(),
+      {
+        "generator_version": 2,
+        "scenario": { "seed": 1, "sql": "sample" },
+        "steps": 0,
+      },
+      {
+        "generator_version": 1,
+        "scenario": { "seed": 0, "sql": "sample" },
+        "steps": 0,
+      },
+      {
+        "generator_version": 1,
+        "scenario": { "seed": 1, "sql": "sample" },
+        "steps": 129,
+      },
+    ] {
+    assert_true(replay_parameters(bad) is Err(_))
+  }
+  println("Differential oracle self-checks passed")
+}
+
+///|
+async fn verify(cases : Array[Json], steps : Int32, origin : Json) -> Unit {
+  for scenario in cases {
+    guard scenario
+      is {
+        "seed": seed,
+        "commands": Array(raw),
+        "sentinel": String(sentinel),
+        "index_name": String(index_name),
+        ..
+      } else {
+      fail("Invalid scenario")
+    }
+    let commands : Array[String] = []
+    for command in raw {
+      guard command is String(sql) else { fail("Invalid command") }
+      commands.push(sql)
+    }
+    let observation = "SELECT setting,unit FROM pg_settings WHERE name='lock_timeout'"
+    for mode in ["separate", "simple"] {
+      let statements = commands.copy()
+      statements.push(observation)
+      statements.push(sentinel)
+      statements.push("DROP INDEX " + index_name)
+      let dispatch = if mode == "simple" {
+        [statements.join(";\n") + ";"]
+      } else {
+        statements
+      }
+      let result = psql(dispatch)
+      guard scenario is Object(fields) && fields.get(mode) is Some(expected) else {
+        fail("Missing analysis")
+      }
+      match
+        check_observation(
+          expected,
+          result.exit_code(),
+          result.stdout(),
+          result.stderr(),
+        ) {
+        Ok(_) => ()
+        Err(reason) => {
+          @fs.mkdir("_build/differential", recursive=true, allow_exist=true)
+          let path = "_build/differential/seed-" +
+            seed.stringify() +
+            "-" +
+            mode +
+            ".json"
+          let failure : Json = {
+            "format_version": 1,
+            "generator_version": 1,
+            "tool_origin": origin,
+            "scenario": scenario,
+            "mode": mode,
+            "steps": steps,
+            "reason": reason,
+            "postgres_exit": result.exit_code(),
+            "stdout": result.stdout(),
+            "stderr": result.stderr(),
+            "replay": "moon run scripts/differential.mbtx " +
+            seed.stringify() +
+            " 1 \{steps}",
+          }
+          // Keep the first saved regression if the same seed fails again.
+          if !@fs.exists(path) {
+            @fs.write_file(
+              path,
+              failure.stringify(indent=2),
+              create_mode=CreateNew,
+            )
+          }
+          fail(
+            "Differential mismatch: seed=\{seed.stringify()} mode=\{mode}: \{reason}; saved \{path}",
+          )
+        }
+      }
+    }
+  }
+}
+
+///|
+async fn main {
+  if @env.args().get(1) == Some("--self-test") {
+    self_test()
+    return
+  }
+  guard @env.get_env_var("MIGRATIONLENS_DISPOSABLE_DB") == Some("1") &&
+    @env.get_env_var("PGDATABASE") == Some("migrationlens_test") else {
+    fail(
+      "Set MIGRATIONLENS_DISPOSABLE_DB=1 and PGDATABASE=migrationlens_test for a disposable PostgreSQL 18 database",
+    )
+  }
+  let args = @env.args()[1:].to_owned()
+  let mut replay_sql : String? = None
+  let numbers = if args.is_empty() {
+    [20261028, 32, 40]
+  } else if args is ["--replay", path] {
+    let saved = @json.parse(
+      @fs.read_file(path).text(),
+      reject_duplicate_keys=true,
+      preserve_number_repr=true,
+      max_nesting_depth=24,
+    )
+    let (seed, steps, sql) = replay_parameters(saved).unwrap()
+    replay_sql = Some(sql)
+    [seed, 1, steps]
+  } else {
+    args.map(arg => @string.parse_int(arg) catch { _ => -1 })
+  }
+  guard numbers is [seed, count, steps] &&
+    seed >= 1 &&
+    seed <= 2147483646 &&
+    count >= 1 &&
+    count <= 256 &&
+    steps >= 0 &&
+    steps <= 128 else {
+    fail("Expected seed 1..2147483646, count 1..256, steps 0..128")
+  }
+  let moon = @env.get_env_var("MIGRATIONLENS_MOON").unwrap_or("moon")
+  let plan = @shell.Cmd(moon, [
+    "run",
+    "cmd/scenarios",
+    "--",
+    "\{seed}",
+    "\{count}",
+    "\{steps}",
+  ]).output(timeout_ms=180000, max_output_bytes=67108864)
+  plan.check()
+  guard @json.parse(plan.stdout())
+    is { "cases": Array(cases), "tool_origin": origin, .. } else {
+    fail("Invalid plan")
+  }
+  if replay_sql is Some(sql) {
+    guard cases is [{ "sql": String(regenerated), .. }] && regenerated == sql else {
+      fail(
+        "Replay SQL differs from generator version 1; refusing to execute saved payload",
+      )
+    }
+  }
+  let version = psql(["SHOW server_version_num"])
+  version.check()
+  let major = @string.parse_int(version.stdout().trim())
+  guard major >= 180000 && major < 190000 else {
+    fail("PostgreSQL 18 required")
+  }
+  let setup = psql(["CREATE TABLE migrationlens_diff_probe(id integer)"])
+  setup.check()
+  errdefer {
+    let cleanup = psql(["DROP TABLE migrationlens_diff_probe CASCADE"])
+    if cleanup.exit_code() != 0 {
+      println("Probe cleanup failed; recreate disposable database")
+    }
+  }
+  verify(cases, steps, origin)
+  let cleanup = psql(["DROP TABLE migrationlens_diff_probe CASCADE"])
+  cleanup.check()
+  println(
+    "PostgreSQL differential checks passed: \{count} seeds x 2 dispatch modes, \{steps} generated steps; server=\{major}",
+  )
+}

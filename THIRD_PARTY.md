@@ -11,6 +11,12 @@ are also authored under Apache-2.0. The example references GitHub's official
 artifact/status documentation; no workflow or documentation text is copied.
 `actions/upload-artifact` (MIT) is a hosted validation/integration tool, not
 a bundled runtime dependency: <https://github.com/actions/upload-artifact>.
+The differential generator uses an authored integer Park-Miller recurrence, not
+copied generator code. Its scenario model, tests, observer and replay logic are
+Apache-2.0. Server observations follow PostgreSQL 18 pg_settings and protocol
+documentation (PostgreSQL License), with no upstream text/code/fixtures copied:
+<https://www.postgresql.org/docs/18/view-pg-settings.html> and
+<https://www.postgresql.org/docs/18/protocol-flow.html#PROTOCOL-FLOW-MULTI-STATEMENT>.
 
 ## Dependencies
 
